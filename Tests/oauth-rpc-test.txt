@@ -1,0 +1,4 @@
+initialize: ok
+isolated login/start: type=chatgpt, URL scheme=https, host=auth.openai.com, loginId present=True
+isolated login/cancel: ok
+Browser not opened; live Codex auth untouched; isolated credential file exists: False

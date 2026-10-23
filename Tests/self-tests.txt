@@ -1,0 +1,49 @@
+PASS identity display metadata
+PASS different users stay distinct
+PASS workspaces stay distinct
+PASS refresh keeps stable identity
+PASS API key input rejected
+PASS malformed JSON rejected
+PASS oversized credential rejected
+PASS credential bytes preserved
+PASS auth file mode 0600
+PASS symlink reads rejected
+PASS symlink writes rejected
+PASS symlink target unchanged
+PASS default file mode accepted
+PASS explicit file mode accepted
+PASS keyring mode preserved and rejected
+PASS auto mode preserved and rejected
+PASS ephemeral mode preserved and rejected
+PASS account metadata roundtrip
+PASS metadata contains no tokens
+PASS duplicate metadata rejected
+PASS corrupt metadata rejected
+PASS corrupt metadata preserved
+PASS concurrent transaction locked
+PASS lock released after transaction
+PASS switch writes target and launches
+PASS rollback persisted before switch
+PASS launch failure rolls back
+PASS backup failure blocks switch
+PASS invalid target leaves current
+PASS foreign update preserved
+PASS absent original restored
+PASS official login host accepted
+PASS ChatGPT login host accepted
+PASS suffix impersonation rejected
+PASS prefix impersonation rejected
+PASS save current fixture account
+PASS saving twice deduplicates account
+PASS latest refresh token replaces saved fixture
+PASS account note trims whitespace
+PASS appearance persists
+PASS reopening restores list and current indicator
+PASS Keychain save failure leaves UI usable
+PASS save failure preserves live fixture
+PASS corrupt list blocks overwrite
+PASS blocked save preserves corrupt list for repair
+PASS isolated Keychain roundtrip
+PASS isolated Keychain update
+PASS isolated Keychain cleanup
+RESULT 48 passed, 0 failed. Fixtures only; no live Codex session touched.
