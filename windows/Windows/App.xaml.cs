@@ -38,9 +38,16 @@ public partial class App : Application
             if (render >= 0 && render + 1 < e.Args.Length)
             {
                 await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-                window.UpdateLayout();
-                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
-                bitmap.Render(window);
+                // Render a fixed-size client area, independent of the CI display work area/DPI.
+                // Demo only: detaching the visual avoids cropped non-client chrome and black margins.
+                var content = (System.Windows.Controls.Panel)window.Content;
+                content.Background = window.Background;
+                window.Content = null;
+                content.Width = 1100; content.Height = 1120;
+                content.Measure(new Size(1100, 1120));
+                content.Arrange(new Rect(0, 0, 1100, 1120)); content.UpdateLayout();
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(1100, 1120, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(content);
                 var png = new System.Windows.Media.Imaging.PngBitmapEncoder(); png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
                 using var file = File.Create(e.Args[render + 1]); png.Save(file); Shutdown(0);
             }
