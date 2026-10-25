@@ -1,0 +1,24 @@
+{
+  "machine": "AMD64",
+  "subsystem": "Windows GUI",
+  "size_bytes": 161945203,
+  "sha256": "49ba80c9d3f8fbab36dfa73343e12a20aa23aade350752780db1c68c15862336",
+  "runtime": {
+    "tfm": "net8.0",
+    "includedFrameworks": [
+      {
+        "name": "Microsoft.NETCore.App",
+        "version": "8.0.32"
+      },
+      {
+        "name": "Microsoft.WindowsDesktop.App",
+        "version": "8.0.32"
+      }
+    ],
+    "configProperties": {
+      "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
+      "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": true
+    }
+  },
+  "native_windows_execution": "not performed"
+}

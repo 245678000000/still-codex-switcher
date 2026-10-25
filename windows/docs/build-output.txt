@@ -1,0 +1,3 @@
+  Still.Core -> /private/tmp/still-windows-build/Core/bin/Release/net8.0/Still.Core.dll
+  Still.Windows -> /private/tmp/still-windows-build/Windows/bin/Release/net8.0-windows/win-x64/StillCodexSwitcher.dll
+  Still.Windows -> /private/tmp/still-windows-publish/

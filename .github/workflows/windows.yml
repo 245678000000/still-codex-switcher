@@ -1,0 +1,31 @@
+name: Windows fixture checks
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and run isolated native tests
+        shell: pwsh
+        run: ./scripts/build.ps1
+      - name: Render demo screenshots
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path dist/win-x64/StillCodexSwitcher.exe).Path
+          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/light.png" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Light render failed' }
+          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/dark.png",'--dark' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Dark render failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-build-and-fixture-results
+          path: windows/dist/

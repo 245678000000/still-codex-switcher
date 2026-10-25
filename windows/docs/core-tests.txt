@@ -1,0 +1,76 @@
+PASS identity metadata
+PASS distinct users
+PASS distinct workspaces
+PASS stable identity after refresh
+PASS missing token rejected
+PASS malformed JSON rejected
+PASS API key rejected
+PASS empty identity rejected
+PASS empty refresh rejected
+PASS oversize rejected
+PASS missing auth handled
+PASS atomic initial write
+PASS atomic replacement
+PASS temporary file cleanup
+PASS ACL failure blocks plaintext write
+PASS ACL failure preserves current
+PASS symlink read rejected
+PASS symlink write rejected
+PASS linked parent rejected
+PASS default file mode
+PASS explicit file mode
+PASS quoted file mode key
+PASS keyring mode not changed
+PASS keyring config preserved
+PASS auto mode not changed
+PASS auto config preserved
+PASS ephemeral mode not changed
+PASS ephemeral config preserved
+PASS BOM config mode checked
+PASS new empty library
+PASS capture credentials
+PASS deduplicate capture
+PASS latest refresh saved
+PASS metadata has no credentials
+PASS second account added
+PASS rename trims whitespace
+PASS blank note rejected
+PASS oversize note rejected
+PASS library survives reopen
+PASS remove saved record
+PASS remove leaves current file
+PASS vault failure blocks capture
+PASS vault failure preserves metadata
+PASS duplicate IDs rejected
+PASS duplicate identities rejected
+PASS corrupt metadata rejected
+PASS corrupt metadata preserved
+PASS concurrent operation blocked
+PASS operation lock released
+PASS switch and launch fixture
+PASS durable rollback before switch
+PASS launch failure reported
+PASS launch failure restores original
+PASS backup failure blocks switch
+PASS backup failure preserves original
+PASS invalid target rejected
+PASS invalid target leaves current
+PASS external modification reported
+PASS external modification preserved
+PASS backup race detected
+PASS backup race preserved
+PASS empty-original launch failure
+PASS empty original restored
+PASS pluggable vault roundtrip
+PASS vault passes data through protector
+PASS vault traversal rejected
+PASS vault removal
+PASS official OAuth host accepted
+PASS official OAuth host accepted
+PASS official OAuth host accepted
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+RESULT 75 passed, 0 failed. Synthetic fixtures only; no live account read or changed.

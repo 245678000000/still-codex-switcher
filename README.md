@@ -6,6 +6,8 @@
 
 **平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
 
+Windows 10/11 x64 的源码、使用说明和测试记录在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
+
 | 浅色 | 深色 |
 |---|---|
 | ![浅色界面](docs/screenshot-light.png) | ![深色界面](docs/screenshot-dark.png) |
@@ -87,6 +89,10 @@ bash scripts/build.sh /private/tmp/still-switcher-dist
 ```
 
 `--demo` 和 `--render` 使用虚构账号，不读取真实 auth.json，不切换 Codex。`--keychain-test` 只使用随机命名的本工具测试服务，测试结束删除测试项目。
+
+## Windows
+
+源码在 [`windows/`](windows/README.md)。在 Windows 上安装 .NET 8 SDK 后，进入该目录运行 `./scripts/build.ps1`。核心逻辑 75 项模拟测试已记录通过；原生窗口、DPAPI 和真实账号切换尚待 Windows 实机验收。手动验收工作流是 `.github/workflows/windows.yml`。
 
 ## 致谢
 
