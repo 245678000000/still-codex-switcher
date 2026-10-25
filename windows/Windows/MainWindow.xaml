@@ -23,7 +23,7 @@
  </Border>
  <Grid Grid.Column="1"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <DockPanel Margin="32,18,32,12"><Button Content="打开 Codex ↗" DockPanel.Dock="Right" Click="OpenCodex" Padding="10,6" Background="Transparent" BorderThickness="0"/><TextBlock x:Name="Breadcrumb" Text="工作台   /   账号空间" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource MutedBrush}"/></DockPanel>
-  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <ScrollViewer x:Name="MainScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
    <Grid Margin="32,15,32,25">
     <StackPanel x:Name="AccountsPage">
      <TextBlock Text="ONE CLICK. ANOTHER PERSPECTIVE." FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,10"/>

@@ -222,6 +222,7 @@ public partial class MainWindow : Window
         dialog.Loaded += (_, _) => { text.Focus(); text.SelectAll(); };
         return dialog.ShowDialog() == true ? text.Text.Trim() : null;
     }
+    public void ShowDemoQuotaList() { if (demo) MainScroll.ScrollToBottom(); }
     public void SetDemoTheme(string theme) { if (demo) { library.Theme = theme; ApplyTheme(); Render(); } }
     bool IsDark()
     {

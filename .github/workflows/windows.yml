@@ -23,9 +23,9 @@ jobs:
         shell: pwsh
         run: |
           $exe = (Resolve-Path dist/win-x64/StillCodexSwitcher.exe).Path
-          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/light.png" -Wait -PassThru
+          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/light.png",'--render-accounts' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw 'Light render failed' }
-          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/dark.png",'--dark' -Wait -PassThru
+          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/dark.png",'--dark','--render-accounts' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw 'Dark render failed' }
       - uses: actions/upload-artifact@v4
         if: always()
