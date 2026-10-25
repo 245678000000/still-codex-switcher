@@ -4,12 +4,23 @@
 
 ## 当前交付状态
 
-- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/latest)。
+- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1)。
 - Windows x64 自包含 EXE，适用于 Windows 10/11 的 Intel / AMD 64 位电脑；无需单独安装 .NET，无需管理员权限。
 - 已在 Mac 上交叉编译生成真正的 Windows PE32+ GUI 可执行文件；使用 Microsoft .NET 8.0.32 运行库。
-- 核心逻辑 **75 项模拟测试通过**；Windows 原生窗口、DPAPI/ACL、官方登录回调及真实 Codex 重启切换**尚待 Windows 实机验收**。
+- 核心逻辑 **118 项模拟测试通过**（含 43 项额度用例）；Windows 原生窗口、DPAPI/ACL、官方登录回调及真实 Codex 重启切换**尚待 Windows 实机验收**。
 - 这是可供首次试用的便携首版，不把“编译通过”等同于“Windows 全流程已测试”。测试未读取或更改你的真实 Codex 登录。
 - 没有配置 Authenticode 发布者签名，Windows 可能显示来源提示。本程序不会修改 Defender、SmartScreen、执行策略等系统保护设置。
+
+## Windows 1.1：每个账号的剩余额度
+
+- 每张账号卡显示 **5 小时、7 天剩余百分比**、进度条和本地时区的重置时间。剩余比例为 `100 - usedPercent`，限制在 0–100%。
+- 启动后查询；窗口打开且未最小化时，每 5 分钟刷新。支持「刷新全部额度」、单账号「刷新」与「停止」，手动查询间隔至少 30 秒。
+- 使用官方 CLI 的 `account/rateLimits/read`。优先选择 `rateLimitsByLimitId.codex`；按窗口长度 300 / 10080 分钟匹配，绝不把其他模型、未知长度或缺失值标成满额。
+- 查询在独立私有 `CODEX_HOME` 子进程中进行，以 `chatgptAuthTokens` 临时传入所选账号的 access token。不切换桌面账号，不写当前 `auth.json`，不发送刷新令牌，也不调用额度重置或模型生成接口。
+- 此模式属于实验性协议，需要兼容的官方 CLI。过期 token 会提示更新登录备份或重新添加账号；刷新额度本身不自动续期。当前账号优先读取身份匹配的最新本机 access token。
+- 无数据显示「— / 暂未提供数据」，首次显示「待刷新」。查询失败保留上次结果并标记；超过 5 分钟或跨过重置时间后标记待刷新，不猜测自动恢复到 100%。
+- 额度仅存在内存中。错误提示不显示令牌或服务器原始响应。查询仅连接官方服务，不向第三方发送凭据。
+- 本次更新仅 Windows，现有 Mac 版保持原样。真实账号的服务端额度读取仍待使用者登录后核对，测试均使用虚构账号。
 
 ## 三步开始
 
@@ -47,7 +58,7 @@
 - 添加账号在本工具私有目录下使用独立 CODEX_HOME，完成/取消后清理。只结束本工具启动的登录子进程。
 - 切换前保存当前账号最新凭据，先写加密回滚备份，再原子替换登录文件。系统启动请求失败时恢复原文件；若检测到别的程序修改了登录文件，则保留其改动。
 - 只支持 ChatGPT 登录和 `file` 凭据存储模式。遇到显式 `keyring`、`auto`、`ephemeral` 或 API Key 配置时保持现状并提示，不修改 Codex 配置。
-- 不更改聊天记录、项目、订阅和额度。订阅标签来自本机缓存，不是实时额度查询。
+- 不更改聊天记录、项目、订阅和额度。订阅标签来自本机缓存；额度卡显示独立查询结果和刷新时间。
 - Windows 本机与 WSL 的 Codex 登录分别管理；这个版本不切换 WSL。
 - Mac 钥匙串和 Windows 加密库不直接互通。**在 Windows 上各登录一次**，不要把真实令牌放进源码或发送给别人。
 - 删除保存记录不会让当前 Codex 退出，也不会删除独立的上一份回滚备份。删除 EXE 不会删除账号库。
@@ -77,7 +88,7 @@ dotnet run --project Tests/Still.Tests.csproj -c Release
 dotnet publish Windows/Still.Windows.csproj -c Release -r win-x64 --self-contained true -p:RuntimeFrameworkVersion=8.0.32 -o dist/win-x64
 ```
 
-仓库根目录的 `.github/workflows/windows.yml` 是手动触发的 Windows 验收工作流，工作目录为 `windows/`。**交付时没有执行该工作流。** `--render 文件.png` 使用演示账号渲染窗口，可加 `--dark`；只在 Windows 执行。
+仓库根目录的 `.github/workflows/windows.yml` 是手动触发的 Windows 验收工作流，工作目录为 `windows/`。每次执行结果见仓库 Actions；本次验收见 `docs/quota-validation.md`。 `--render 文件.png` 使用演示账号渲染窗口，可加 `--dark`；只在 Windows 执行。
 
 ## 机制参考
 
@@ -87,4 +98,4 @@ dotnet publish Windows/Still.Windows.csproj -c Release -r win-x64 --self-contain
 - [Microsoft DPAPI 数据保护](https://learn.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection)
 - [Microsoft 跨平台构建 Windows 目标](https://learn.microsoft.com/en-us/dotnet/core/tools/sdk-errors/netsdk1100)
 
-独立第三方本地工具，与 OpenAI 无官方关联。交付日期：2026-10-25。
+独立第三方本地工具，与 OpenAI 无官方关联。额度更新日期：2026-10-26。

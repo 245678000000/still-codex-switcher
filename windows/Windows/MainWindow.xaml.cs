@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -19,6 +20,10 @@ public partial class MainWindow : Window
     Library library = new(); Identity? current; DesktopTarget? desktop;
     bool busy, ready = true, initialized;
     CancellationTokenSource? loginCancel;
+    CancellationTokenSource? quotaCancel;
+    readonly Dictionary<Guid, QuotaState> quotas = [];
+    readonly System.Windows.Threading.DispatcherTimer quotaTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    bool refreshingQuotas;
     public MainWindow(bool demo)
     {
         this.demo = demo;
@@ -31,8 +36,11 @@ public partial class MainWindow : Window
         if (demo)
         {
             library.Accounts = new[] { ("Personal", "personal@example.com", "plus"), ("工作空间", "work@example.com", "team"), ("日常探索", "explore@example.com", "free") }.Select((v, i) => new Account(Guid.NewGuid(), "demo-" + i, v.Item1, v.Item2, v.Item3, DateTimeOffset.Now, i)).ToList();
-            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.0";
+            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.1";
             StatusText.Text = "界面演示：不读取真实账号，也不切换 Codex。";
+            var now = DateTimeOffset.UtcNow;
+            quotas[library.Accounts[0].Id] = new(new(new(76, now.AddHours(3)), new(42, now.AddDays(4)), now));
+            quotas[library.Accounts[1].Id] = new(new(new(18, now.AddMinutes(40)), new(8, now.AddDays(1)), now));
         }
         else
         {
@@ -40,7 +48,14 @@ public partial class MainWindow : Window
             try { library = store.Load(); } catch (Exception ex) { ready = false; StatusText.Text = ErrorText(ex); }
         }
         initialized = true; ApplyTheme(); Render();
-        Loaded += async (_, _) => { if (!demo && ready) await RefreshAsync(); };
+        Loaded += async (_, _) => { if (!demo && ready) { await RefreshAsync(); await RefreshQuotasAsync(); quotaTimer.Start(); } };
+        quotaTimer.Tick += async (_, _) =>
+        {
+            RenderAccounts();
+            if (!demo && IsVisible && WindowState != WindowState.Minimized && !busy && !refreshingQuotas)
+                await RefreshQuotasAsync(onlyDue: true);
+        };
+        Closed += (_, _) => { quotaTimer.Stop(); quotaCancel?.Cancel(); };
     }
     static string ErrorText(Exception ex) => ex is UserError ? ex.Message : ex is UnauthorizedAccessException ? "目录或进程访问受限。请使用普通用户运行，并检查路径权限。" : "操作未完成（" + ex.GetType().Name + "）。请检查使用说明与本地目录，账号凭据不会写入错误日志。";
     async Task Run(Func<Task> action, bool reload = true)
@@ -60,6 +75,7 @@ public partial class MainWindow : Window
     void SetBusy(bool value)
     {
         busy = value; SaveButton.IsEnabled = !value && ready; AddButton.IsEnabled = !value && ready;
+        QuotaRefreshButton.IsEnabled = !value && !refreshingQuotas && ready;
         CancelLoginButton.Visibility = loginCancel != null ? Visibility.Visible : Visibility.Collapsed;
         RenderAccounts();
     }
@@ -94,7 +110,8 @@ public partial class MainWindow : Window
     {
         if (!initialized) return;
         var filtered = library.Accounts.Where(a => (a.Label + a.Email).Contains(SearchBox.Text ?? "", StringComparison.OrdinalIgnoreCase));
-        var rows = filtered.Select(a => new AccountRow(a, a.IdentityKey == current?.Key, busy, IsDark())).ToList();
+        foreach (var id in quotas.Keys.Where(id => !library.Accounts.Any(a => a.Id == id)).ToArray()) quotas.Remove(id);
+        var rows = filtered.Select(a => new AccountRow(a, a.IdentityKey == current?.Key, busy, IsDark(), quotas.GetValueOrDefault(a.Id) ?? new(), refreshingQuotas)).ToList();
         AccountsList.ItemsSource = rows;
         EmptyState.Visibility = library.Accounts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         NoMatches.Visibility = library.Accounts.Count > 0 && rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -225,6 +242,78 @@ public partial class MainWindow : Window
     }
     async void DetectClick(object sender, RoutedEventArgs e) => await RefreshAsync();
     async void RefreshClick(object sender, RoutedEventArgs e) => await RefreshAsync();
+    async void RefreshAllQuotas(object sender, RoutedEventArgs e) => await RefreshQuotasAsync();
+    async void RefreshAccountQuota(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).Tag is Account account) await RefreshQuotasAsync(account.Id);
+    }
+    void CancelQuotas(object sender, RoutedEventArgs e) => quotaCancel?.Cancel();
+    async Task RefreshQuotasAsync(Guid? selected = null, bool onlyDue = false)
+    {
+        if (busy || refreshingQuotas || !ready) return;
+        if (demo) { StatusText.Text = "演示额度为虚构数据；正式运行从官方服务查询。"; return; }
+        var now = DateTimeOffset.UtcNow;
+        var targets = library.Accounts.Where(a => selected == null || a.Id == selected).Where(a =>
+            !quotas.TryGetValue(a.Id, out var state) || state.AttemptedAt == null || now - state.AttemptedAt >= TimeSpan.FromSeconds(onlyDue ? 300 : 30)).ToArray();
+        if (targets.Length == 0) { if (!onlyDue) StatusText.Text = "额度刚刚刷新过，请稍后再试。"; return; }
+        refreshingQuotas = true; quotaCancel = new();
+        QuotaRefreshButton.IsEnabled = false; CancelQuotaButton.Visibility = Visibility.Visible;
+        var cancel = quotaCancel.Token;
+        try
+        {
+            // Only metadata/vault reads hold the operation lock. Network work does not block switching.
+            var cli = desktop?.FindCli(library.CliPath) ?? library.CliPath;
+            foreach (var account in targets)
+            {
+                if (cancel.IsCancellationRequested) break;
+                var old = quotas.GetValueOrDefault(account.Id) ?? new();
+                quotas[account.Id] = old with { Loading = true, AttemptedAt = DateTimeOffset.UtcNow }; RenderAccounts();
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(cli) || !File.Exists(cli)) throw new UserError("请在设置中选择官方 CLI 后刷新额度。");
+                    byte[]? auth = null;
+                    try
+                    {
+                        using (var gate = new OperationLock(paths.Root))
+                        {
+                            if (!store.Load().Accounts.Any(a => a.Id == account.Id && a.IdentityKey == account.IdentityKey)) { quotas.Remove(account.Id); continue; }
+                            // Prefer the live access token only when identity matches. Never write the live auth file.
+                            ConfigGuard.Check(paths.Config);
+                            var live = SafeFiles.Read(paths.Auth);
+                            if (live != null)
+                            {
+                                try { if (Identity.Read(live).Key == account.IdentityKey) auth = live; }
+                                catch (UserError) { }
+                                finally { if (!ReferenceEquals(auth, live)) CryptographicOperations.ZeroMemory(live); }
+                            }
+                            auth ??= vault.Get(account.Id.ToString());
+                        }
+                        if (auth == null) throw new UserError("登录备份缺失，请重新添加账号。");
+                        var snapshot = await Task.Run(() => new QuotaBroker(cli, paths.Root, PrivateAccess.Set).ReadAsync(auth, account.IdentityKey, cancel), cancel);
+                        if (library.Accounts.Any(a => a.Id == account.Id && a.IdentityKey == account.IdentityKey))
+                            quotas[account.Id] = new(snapshot, AttemptedAt: DateTimeOffset.UtcNow);
+                    }
+                    finally { if (auth != null) CryptographicOperations.ZeroMemory(auth); }
+                }
+                catch (Exception ex)
+                {
+                    if (library.Accounts.Any(a => a.Id == account.Id && a.IdentityKey == account.IdentityKey))
+                        quotas[account.Id] = old with { Error = ex is OperationCanceledException ? "已取消刷新" : ex is UserError ? ex.Message : "查询未完成，请检查网络或登录状态。", Loading = false, AttemptedAt = DateTimeOffset.UtcNow };
+                }
+                RenderAccounts();
+            }
+            if (!busy && !onlyDue) StatusText.Text = cancel.IsCancellationRequested ? "已停止额度刷新；上次结果保留。" : "额度刷新结束，各账号状态见卡片。查询没有切换或重启 Codex。";
+        }
+        catch (Exception)
+        {
+            if (!busy) StatusText.Text = "额度查询未完成，请检查官方 CLI 路径或稍后重试。";
+        }
+        finally
+        {
+            refreshingQuotas = false; quotaCancel?.Dispose(); quotaCancel = null;
+            QuotaRefreshButton.IsEnabled = !busy && ready; CancelQuotaButton.Visibility = Visibility.Collapsed; RenderAccounts();
+        }
+    }
     async void ChooseDesktop(object sender, RoutedEventArgs e)
     {
         if (busy || demo) return;
@@ -258,12 +347,13 @@ public partial class MainWindow : Window
     }
     void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (refreshingQuotas) { quotaCancel?.Cancel(); e.Cancel = true; StatusText.Text = "正在结束额度查询，完成后可关闭。"; return; }
         if (!busy) return; e.Cancel = true;
         if (loginCancel != null) { loginCancel.Cancel(); StatusText.Text = "正在结束登录并清理临时资料，完成后可关闭。"; }
         else StatusText.Text = "当前操作正在完成，请稍后再关闭。";
     }
 }
-public sealed class AccountRow(Account account, bool current, bool busy, bool dark)
+public sealed class AccountRow(Account account, bool current, bool busy, bool dark, QuotaState quota, bool refreshing)
 {
     public Account Account => account;
     public string Label => account.Label;
@@ -272,6 +362,18 @@ public sealed class AccountRow(Account account, bool current, bool busy, bool da
     public string Initial => string.IsNullOrEmpty(Label) ? "·" : Label[..1].ToUpperInvariant();
     public string SwitchText => current ? "✓ 当前配置" : "切换并重启 →";
     public bool CanSwitch => !current && !busy;
+    public bool CanRefresh => !busy && !refreshing;
+    public string QuotaStatus => quota.Status(DateTimeOffset.UtcNow);
+    public string FivePercent => QuotaState.Percent(quota.Snapshot?.FiveHours);
+    public string SevenPercent => QuotaState.Percent(quota.Snapshot?.SevenDays);
+    public double FiveValue => quota.Snapshot?.FiveHours?.RemainingPercent ?? 0;
+    public double SevenValue => quota.Snapshot?.SevenDays?.RemainingPercent ?? 0;
+    public string FiveReset => QuotaState.Reset(quota.Snapshot?.FiveHours, DateTimeOffset.UtcNow);
+    public string SevenReset => QuotaState.Reset(quota.Snapshot?.SevenDays, DateTimeOffset.UtcNow);
+    public double QuotaOpacity => quota.IsStale(DateTimeOffset.UtcNow) ? 0.55 : 1;
+    public Brush FiveColor => QuotaColor(quota.Snapshot?.FiveHours);
+    public Brush SevenColor => QuotaColor(quota.Snapshot?.SevenDays);
+    Brush QuotaColor(QuotaWindow? w) => (Brush)new BrushConverter().ConvertFromString(w == null ? dark ? "#69796F" : "#BCC9C0" : w.RemainingPercent <= 10 ? dark ? "#ED9290" : "#B94343" : w.RemainingPercent <= 25 ? dark ? "#E1B875" : "#A57626" : dark ? "#8EC5A1" : "#326F54")!;
     public Brush BorderColor => (Brush)new BrushConverter().ConvertFromString(current ? dark ? "#486650" : "#B8D1C1" : dark ? "#354039" : "#E1E8E3")!;
     public Brush AvatarColor => (Brush)new BrushConverter().ConvertFromString(new[] { "#54896A", "#799BAE", "#AE9471", "#A48FAA" }[Math.Abs(account.Color % 4)])!;
     public Brush AvatarBackground => new SolidColorBrush(Color.FromArgb(26, ((SolidColorBrush)AvatarColor).Color.R, ((SolidColorBrush)AvatarColor).Color.G, ((SolidColorBrush)AvatarColor).Color.B));

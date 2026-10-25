@@ -37,6 +37,7 @@ public static class TestSuite
         var root = Path.Combine(tempBase, "still-core-tests-" + Guid.NewGuid()); Directory.CreateDirectory(root);
         try
         {
+            await QuotaTests.Run(Check);
             var a = Fixture(); var b = Fixture("fixture-b", "workspace-b");
             var ia = Identity.Read(a); var ib = Identity.Read(b);
             Check(ia.Email == "fixture@example.com" && ia.Plan == "plus", "identity metadata");
