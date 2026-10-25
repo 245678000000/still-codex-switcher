@@ -4,6 +4,7 @@
 
 ## 当前交付状态
 
+- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/latest)。
 - Windows x64 自包含 EXE，适用于 Windows 10/11 的 Intel / AMD 64 位电脑；无需单独安装 .NET，无需管理员权限。
 - 已在 Mac 上交叉编译生成真正的 Windows PE32+ GUI 可执行文件；使用 Microsoft .NET 8.0.32 运行库。
 - 核心逻辑 **75 项模拟测试通过**；Windows 原生窗口、DPAPI/ACL、官方登录回调及真实 Codex 重启切换**尚待 Windows 实机验收**。
