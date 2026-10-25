@@ -45,6 +45,16 @@ public partial class App : Application
                 using var file = File.Create(e.Args[render + 1]); png.Save(file); Shutdown(0);
             }
         }
-        catch (Exception ex) { MessageBox.Show(ex is UserError ? ex.Message : "初始化未完成，请检查本地目录权限或查看使用说明。", "栖言 · Codex 账号"); Shutdown(1); }
+        catch (Exception ex)
+        {
+            var render = Array.IndexOf(e.Args, "--render");
+            if (render >= 0 && render + 1 < e.Args.Length)
+            {
+                // Render mode always uses synthetic accounts. Keep CI headless and diagnosable.
+                try { File.WriteAllText(e.Args[render + 1] + ".error.txt", ex.ToString()); } catch { }
+            }
+            else MessageBox.Show(ex is UserError ? ex.Message : "初始化未完成，请检查本地目录权限或查看使用说明。", "栖言 · Codex 账号");
+            Shutdown(1);
+        }
     }
 }

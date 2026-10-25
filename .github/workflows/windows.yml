@@ -19,6 +19,7 @@ jobs:
         shell: pwsh
         run: ./scripts/build.ps1
       - name: Render demo screenshots
+        timeout-minutes: 2
         shell: pwsh
         run: |
           $exe = (Resolve-Path dist/win-x64/StillCodexSwitcher.exe).Path
