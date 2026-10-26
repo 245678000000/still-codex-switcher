@@ -43,6 +43,7 @@ struct SavedAccount: Codable, Identifiable, Equatable {
     var plan: String
     var savedAt: Date
     var color: Int
+    var warmup: WarmupRecord?
 }
 struct SwitchLibrary: Codable {
     var version = 1

@@ -1,0 +1,222 @@
+/private/tmp/still-codex-build.d6SD5w/栖言 Codex 账号.app: replacing existing signature
+PASS quota remaining, not used percentage
+PASS quota Unix seconds and fetch timestamp
+PASS quota Codex map preferred
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota null map legacy fallback
+PASS quota matches duration not position
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota used high clamped
+PASS quota used low clamped
+PASS quota bad reset unknown
+PASS quota duplicate duration ambiguous
+PASS quota malformed map rejected
+PASS quota nonfinite numbers rejected
+PASS quota stale after five minutes
+PASS quota clock rollback stale
+PASS quota failure retains labelled snapshot
+PASS quota crossed reset never invents full
+PASS quota presentation
+PASS quota missing reset time
+PASS quota initial state unknown
+PASS quota loading status
+PASS quota manual cooldown
+PASS quota automatic cooldown
+PASS quota credentials use selected workspace
+PASS quota credential diagnostics redacted
+PASS quota mismatched identity rejected
+PASS quota experimental capability
+PASS quota unrelated reply ignored
+PASS quota initialize then ephemeral auth
+PASS quota protocol selected account
+PASS quota protocol sends no refresh token
+PASS quota only read method requested
+PASS quota protocol result parsed
+PASS quota external token renewal not performed
+PASS quota raw errors hidden
+PASS quota identities stay independent
+PASS quota physical and system alias paths accepted
+PASS quota subprocess roundtrip
+PASS quota successful child cleaned
+PASS quota running child cancelled
+PASS quota cancelled child cleaned
+PASS quota deadline enforced
+PASS quota timed-out child cleaned
+PASS quota spawn failure
+PASS quota failed spawn cleaned
+PASS quota symlink directory rejected
+PASS quota no credential file persisted
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update invalid version rejected
+PASS update semantic order 1.1.9 before 1.2.0-alpha
+PASS update semantic order 1.2.0-alpha before 1.2.0-alpha.1
+PASS update semantic order 1.2.0-alpha.1 before 1.2.0-alpha.beta
+PASS update semantic order 1.2.0-alpha.beta before 1.2.0-beta
+PASS update semantic order 1.2.0-beta before 1.2.0-beta.2
+PASS update semantic order 1.2.0-beta.2 before 1.2.0-beta.11
+PASS update semantic order 1.2.0-beta.11 before 1.2.0-rc.1
+PASS update semantic order 1.2.0-rc.1 before 1.2.0
+PASS update semantic order 1.2.0 before 1.10.0
+PASS update semantic order 1.10.0 before 2.0.0
+PASS update build metadata ignores precedence
+PASS update large numeric prerelease ordering
+PASS update Mac preview accepted
+PASS update Windows tag excluded
+PASS update mixed-platform tag excluded even with Mac asset
+PASS update invalid release rejected
+PASS update invalid release rejected
+PASS update invalid release rejected
+PASS update invalid release rejected
+PASS update invalid release rejected
+PASS update invalid release rejected
+PASS update invalid asset rejected
+PASS update invalid asset rejected
+PASS update invalid asset rejected
+PASS update invalid asset rejected
+PASS update invalid asset rejected
+PASS update invalid asset rejected
+PASS update notes bounded and control chars removed
+PASS update stable channel filters previews
+PASS update newest semantic version not list order
+PASS update same version not offered
+PASS update downgrade not offered
+PASS update preview to same core stable offered
+PASS update feed filters platform
+PASS update non-array feed rejected
+PASS update oversized feed rejected
+PASS update HTTP 301 is not success
+PASS update HTTP 403 is not success
+PASS update HTTP 404 is not success
+PASS update HTTP 429 is not success
+PASS update HTTP 500 is not success
+PASS update first run due
+PASS update automatic twelve hour cadence
+PASS update manual sixty second cooldown
+PASS update clock rollback can recover
+PASS update preview build defaults
+PASS update single-flight asynchronous selection
+PASS update successful timestamp
+PASS update repeat manual throttled
+PASS update disabled automatic makes no request
+PASS update manual works with automatic disabled
+PASS update preferences and last success persist
+PASS update new launch checks without stale throttle
+PASS update network failure not called latest
+PASS update cancelled check never publishes
+PASS update demo makes no requests
+PASS warmup default off
+PASS warmup due eligible window
+PASS warmup unknown quota skips
+PASS warmup stale quota skips
+PASS warmup clock rollback skips
+PASS warmup active window skips
+PASS warmup reset grace period
+PASS warmup weekly reserve
+PASS warmup unknown weekly balance skips
+PASS warmup plans without five hour window skip
+PASS warmup same window deduplicated
+PASS warmup older reset deduplicated
+PASS warmup explicit manual retry after confirmation allowed
+PASS warmup changed reset still bounded by five hour cooldown
+PASS warmup manual cooldown bounded
+PASS warmup failures pause automatic mode
+PASS warmup sends only access token over pipe
+PASS warmup server recheck skips already active window
+PASS warmup sends only access token over pipe
+PASS warmup missing selected model stops without substitution
+PASS warmup isolated ephemeral read-only thread
+PASS warmup unexpected thread location stops before turn
+PASS warmup exactly one low effort turn
+PASS warmup tool reads restricted to fixture
+PASS warmup token refresh request stops instead of rotating
+PASS warmup extra server tool request stops
+PASS warmup raw errors redacted
+PASS warmup waits for completion then verifies limits
+PASS warmup unchanged reset is not reported activated
+PASS warmup new reset confirmed from server
+PASS warmup subprocess synthetic end-to-end
+PASS warmup child private files cleaned
+PASS warmup deadline
+PASS warmup timeout cleans child
+PASS warmup existing accounts remain disabled
+PASS warmup model commits claim and verified outcome
+PASS warmup never writes vault or active auth
+PASS warmup model duplicate request suppressed
+PASS warmup dedup survives restart
+PASS warmup quota query failure pauses background scheduler
+PASS warmup saving refreshed credentials preserves settings
+PASS warmup claim persisted before network completion
+PASS warmup second instance leaves durable claim unchanged
+PASS warmup cancellation pauses and releases operation lock
+PASS warmup model cancellation cleans private data
+PASS identity display metadata
+PASS different users stay distinct
+PASS workspaces stay distinct
+PASS refresh keeps stable identity
+PASS API key input rejected
+PASS malformed JSON rejected
+PASS oversized credential rejected
+PASS credential bytes preserved
+PASS auth file mode 0600
+PASS symlink reads rejected
+PASS symlink writes rejected
+PASS symlink target unchanged
+PASS default file mode accepted
+PASS explicit file mode accepted
+PASS keyring mode preserved and rejected
+PASS auto mode preserved and rejected
+PASS ephemeral mode preserved and rejected
+PASS account metadata roundtrip
+PASS metadata contains no tokens
+PASS duplicate metadata rejected
+PASS corrupt metadata rejected
+PASS corrupt metadata preserved
+PASS concurrent transaction locked
+PASS lock released after transaction
+PASS switch writes target and launches
+PASS rollback persisted before switch
+PASS launch failure rolls back
+PASS backup failure blocks switch
+PASS invalid target leaves current
+PASS foreign update preserved
+PASS absent original restored
+PASS official login host accepted
+PASS ChatGPT login host accepted
+PASS suffix impersonation rejected
+PASS prefix impersonation rejected
+PASS save current fixture account
+PASS saving twice deduplicates account
+PASS latest refresh token replaces saved fixture
+PASS account note trims whitespace
+PASS appearance persists
+PASS reopening restores list and current indicator
+PASS Keychain save failure leaves UI usable
+PASS save failure preserves live fixture
+PASS corrupt list blocks overwrite
+PASS blocked save preserves corrupt list for repair
+RESULT 218 passed, 0 failed. Fixtures only; no live Codex session touched.
+
+Built: /private/tmp/still-warmup-dist/Codex-Account-Switcher-macOS.zip

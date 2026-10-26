@@ -1,0 +1,4 @@
+PASS offline external access-token authentication
+PASS ephemeral thread schema, isolated cwd, read-only sandbox and no inherited instruction files
+PASS no auth.json and no synthetic token persisted
+RESULT 3 offline compatibility checks passed; no quota query or model turn sent

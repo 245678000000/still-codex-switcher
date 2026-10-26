@@ -27,6 +27,10 @@ import SwiftUI
         let demo = args.contains("--demo") || args.contains("--render")
         model = SwitcherModel(demo: demo)
         if args.contains("--dark") { model.library.appearance = "dark" }
+        if demo && args.contains("--warmup-demo") {
+            model.library.accounts[0].warmup = WarmupRecord(enabled: true, result: "等待当前窗口结束 · 不切换账号")
+            model.library.accounts[1].warmup = WarmupRecord(enabled: true, paused: true, result: "访问令牌过期 · 请更新登录备份")
+        }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
         if demo && args.contains("--update-demo"), let release = MacRelease.parse(UpdateTests.fixture("macos-v1.3.0-preview.1")) { model.updater.seedPreview(release) }
@@ -54,7 +58,7 @@ import SwiftUI
     private func render(to path: String) {
         NSApp.appearance = NSAppearance(named: model.library.appearance == "dark" ? .darkAqua : .aqua)
         let view = NSHostingView(rootView: RootView(model: model))
-        let frame = NSRect(x: 0, y: 0, width: 1060, height: 1120)
+        let frame = NSRect(x: 0, y: 0, width: 1060, height: CommandLine.arguments.contains("--settings") ? 1380 : 1360)
         let w = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         w.contentView = view; view.frame = frame; w.displayIfNeeded(); view.layoutSubtreeIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -119,7 +123,7 @@ import SwiftUI
         alert.runModal()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if model?.busy == true && model?.loginWaiting == false { NSSound.beep(); showWindow(); return .terminateCancel }
+        if model?.busy == true && model?.loginWaiting == false && model?.warmingAccountID == nil { NSSound.beep(); showWindow(); return .terminateCancel }
         model?.broker.cancel(); model?.cancelQuotaRefresh(); model?.updater.cancel()
         if model?.broker.cleaning == true || model?.refreshingQuotas == true {
             Task {
@@ -134,7 +138,7 @@ import SwiftUI
         }
         return .terminateNow
     }
-    func windowWillClose(_ notification: Notification) { model?.cancelQuotaRefresh() }
+    func windowWillClose(_ notification: Notification) { if model?.hasAutoWarmup != true && model?.warmingAccountID == nil { model?.cancelQuotaRefresh() } }
     func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate(); updateTimer?.invalidate(); model?.updater.cancel() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showWindow(); return true }

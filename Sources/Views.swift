@@ -184,7 +184,8 @@ struct RootView: View {
             else { Image(systemName: model.demo ? "eye" : "checkmark.circle").foregroundStyle(Palette.accent) }
             Text(model.busy ? model.phase : model.message).font(.system(size: 11)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 6)
-            if model.loginWaiting { Button("取消登录") { model.cancelLogin() }.buttonStyle(.plain).foregroundStyle(Palette.accent) }
+            if model.warmingAccountID != nil { Button("停止预热") { model.cancelQuotaRefresh() }.buttonStyle(.plain).foregroundStyle(Palette.accent) }
+            else if model.loginWaiting { Button("取消登录") { model.cancelLogin() }.buttonStyle(.plain).foregroundStyle(Palette.accent) }
             else if !model.busy { IconButton(symbol: "xmark", label: "关闭提示") { model.message = "" } }
         }.foregroundStyle(Palette.muted).padding(.horizontal, 25).padding(.vertical, 10)
             .frame(maxWidth: .infinity, minHeight: 50).background(Palette.sidebar)
@@ -203,6 +204,10 @@ struct RootView: View {
             }
             settingsBlock("软件更新", symbol: "arrow.down.circle") {
                 UpdatePanel(updater: model.updater)
+            }
+            settingsBlock("到期预热 · 默认关闭", symbol: "sun.horizon") {
+                Text("在账号卡片上逐个开启。仅在栖言运行、电脑唤醒时检查；关闭窗口仍可在菜单栏运行，退出后停止。到期后先查额度，再用 GPT-6 Luna / low 发一条「回复ok」。会消耗实际额度，不增加配额。7 天余额不足 1% 或状态不明时跳过。访问令牌过期时暂停，不自动刷新登录。")
+                    .font(.system(size: 11)).foregroundStyle(Palette.muted).lineSpacing(5)
             }
             settingsBlock("登录资料只留在本机", symbol: "lock.shield") {
                 VStack(alignment: .leading, spacing: 11) {
@@ -277,6 +282,20 @@ struct AccountRow: View {
         Hairline()
         AccountQuotaView(state: model.quotas[account.id] ?? QuotaState(), disabled: model.busy || model.refreshingQuotas) {
             model.refreshQuotas(accountID: account.id)
+        }
+        Hairline()
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Toggle("到期自动预热", isOn: Binding(get: { account.warmup?.enabled == true }, set: { model.setWarmup(account, enabled: $0) }))
+                    .toggleStyle(.switch).controlSize(.mini).font(.system(size: 10.5)).tint(Palette.accent).disabled(model.busy)
+                Spacer()
+                if model.warmingAccountID == account.id {
+                    Button("停止") { model.cancelQuotaRefresh() }.buttonStyle(.plain).foregroundStyle(Palette.accent)
+                } else {
+                    Button("预热一次…") { model.requestWarmup(account) }.buttonStyle(.plain).foregroundStyle(Palette.accent).disabled(model.busy || model.refreshingQuotas)
+                }
+            }.font(.system(size: 10))
+            Text(model.warmupStatus(account)).font(.system(size: 9.5)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
         }
         }.padding(.horizontal, 16).padding(.vertical, 14)
             .background(hover ? Palette.surface : Palette.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 13))

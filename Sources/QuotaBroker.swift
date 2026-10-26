@@ -8,7 +8,7 @@ final class QuotaStop: @unchecked Sendable {
     func check() throws { lock.lock(); let value = stopped; lock.unlock(); if value { throw CancellationError() } }
 }
 // Blocking pipe I/O runs off the main actor, is bounded, and observes cancellation every 50 ms.
-// The child is isolated and never receives a refresh token, live CODEX_HOME, or model-turn request.
+// Both modes isolate the child and never send a refresh token. Only explicit warmup mode can start a turn.
 enum QuotaBroker {
     static func canonicalSystemURL(_ url: URL) -> URL {
         let path = url.path
@@ -43,10 +43,26 @@ enum QuotaBroker {
             item.deleteLastPathComponent()
         }
     }
+    static func warmup(cli: URL, root: URL, auth: Data, expectedKey: String, reset: Date, timeout: TimeInterval = 75) async throws -> WarmupResult {
+        let credentials = try QuotaCredentials.read(auth, expectedKey: expectedKey)
+        let stop = QuotaStop()
+        return try await withTaskCancellationHandler(operation: {
+            try Task.checkCancellation()
+            return try await Task.detached(priority: .utility) {
+                guard case .warmup(let value) = try exchange(cli: cli, root: root, credentials: credentials, stop: stop, timeout: timeout, reset: reset) else { throw SwitchError("预热返回类型异常。") }
+                return value
+            }.value
+        }, onCancel: { stop.cancel() })
+    }
+    private enum Reply { case quota(QuotaSnapshot), warmup(WarmupResult) }
     private static func query(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval) throws -> QuotaSnapshot {
+        guard case .quota(let value) = try exchange(cli: cli, root: root, credentials: credentials, stop: stop, timeout: timeout) else { throw SwitchError("额度返回类型异常。") }
+        return value
+    }
+    private static func exchange(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval, reset: Date? = nil) throws -> Reply {
         try stop.check()
         let canonical = canonicalSystemURL(root)
-        let parent = canonical.appendingPathComponent("quota-queries")
+        let parent = canonical.appendingPathComponent(reset == nil ? "quota-queries" : "warmup-requests")
         try privateDirectory(parent)
         let dir = parent.appendingPathComponent(UUID().uuidString); try privateDirectory(dir)
         let p = Process(); let stdin = Pipe(); let stdout = Pipe()
@@ -69,6 +85,18 @@ enum QuotaBroker {
         var env = ProcessInfo.processInfo.environment
         for key in ["OPENAI_API_KEY", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "OPENAI_BASE_URL", "CODEX_THREAD_ID", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "RUST_LOG"] { env.removeValue(forKey: key) }
         env["CODEX_HOME"] = dir.path
+        if reset != nil {
+            // Strict allowlist: no live HOME/config, refresh tokens, API keys, endpoint overrides or shared databases.
+            let temporary = dir.appendingPathComponent("tmp"); try privateDirectory(temporary)
+            env = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": dir.path, "CODEX_HOME": dir.path,
+                   "CODEX_SQLITE_HOME": dir.appendingPathComponent("state").path, "TMPDIR": temporary.path,
+                   "XDG_CONFIG_HOME": dir.path, "XDG_DATA_HOME": dir.path, "XDG_CACHE_HOME": dir.path,
+                   "LANG": "en_US.UTF-8", "USER": NSUserName(), "LOGNAME": NSUserName()]
+            p.arguments = ["-c", "cli_auth_credentials_store=\"ephemeral\"", "-c", "analytics.enabled=false",
+                           "-c", "web_search=\"disabled\"", "-c", "features.shell_tool=false", "-c", "features.unified_exec=false",
+                           "-c", "features.shell_snapshot=false", "-c", "features.apps=false", "-c", "features.multi_agent=false",
+                           "-c", "features.js_repl=false", "-c", "features.sleep_tool=false", "-c", "features.image_generation=false", "app-server"]
+        }
         p.environment = env; p.currentDirectoryURL = dir
         p.standardInput = stdin; p.standardOutput = stdout; p.standardError = FileHandle.nullDevice
         do { try p.run(); started = true } catch { throw SwitchError("官方额度组件未启动，请检查 Codex 安装。") }
@@ -79,7 +107,7 @@ enum QuotaBroker {
         let deadline = ProcessInfo.processInfo.systemUptime + timeout
         func check() throws {
             try stop.check()
-            if ProcessInfo.processInfo.systemUptime >= deadline { throw SwitchError("额度查询超时，请稍后刷新。") }
+            if ProcessInfo.processInfo.systemUptime >= deadline { throw SwitchError(reset == nil ? "额度查询超时，请稍后刷新。" : "预热请求超时，结果待确认；自动重试已暂停。") }
         }
         func send(_ message: [String: Any]) throws {
             var data = try JSONSerialization.data(withJSONObject: message); data.append(0x0a)
@@ -93,7 +121,8 @@ enum QuotaBroker {
             }
         }
         var state = QuotaProtocol(credentials: credentials)
-        try send(QuotaProtocol.initialize)
+        var warm = reset.map { WarmupProtocol(credentials: credentials, directory: dir.path, reset: $0) }
+        try send(reset == nil ? QuotaProtocol.initialize : WarmupProtocol.initialize)
         var buffer = Data(); var chunk = [UInt8](repeating: 0, count: 8192)
         while true {
             try check()
@@ -109,10 +138,18 @@ enum QuotaBroker {
             while let end = buffer.firstIndex(of: 0x0a) {
                 let line = Data(buffer[..<end]); buffer.removeSubrange(...end)
                 guard let obj = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { throw SwitchError("额度响应格式异常。") }
+                if warm != nil {
+                    switch try warm!.receive(obj) {
+                    case .ignore: break
+                    case .send(let messages): for message in messages { try send(message) }
+                    case .result(let result): return .warmup(result)
+                    }
+                    continue
+                }
                 switch try state.receive(obj) {
                 case .ignore: break
                 case .send(let messages): for message in messages { try send(message) }
-                case .result(let snapshot): return snapshot
+                case .result(let snapshot): return .quota(snapshot)
                 }
             }
         }
