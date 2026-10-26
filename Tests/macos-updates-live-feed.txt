@@ -1,0 +1,3 @@
+PASS public GitHub feed: 1 compatible Mac releases
+PASS older-version comparison: macos-v1.1.0-preview.1
+RESULT update feed smoke passed; no account model or credentials loaded

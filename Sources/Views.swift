@@ -51,7 +51,7 @@ struct RootView: View {
             HStack(spacing: 6) {
                 Circle().fill(Palette.accent).frame(width: 5, height: 5)
                 Text(model.demo ? "演示模式 · 虚构账号" : "本地账号管理").font(.system(size: 10))
-                Spacer(); Text("1.1").font(.system(size: 10, design: .monospaced))
+                Spacer(); Text(AppRelease.short).font(.system(size: 10, design: .monospaced))
             }.foregroundStyle(Palette.muted).padding(.bottom, 22)
         }.padding(.horizontal, 19).background(Palette.sidebar)
     }
@@ -73,6 +73,7 @@ struct RootView: View {
             Text("/").foregroundStyle(Palette.line)
             Text(model.page == "accounts" ? "账号空间" : "偏好与说明")
             Spacer()
+            UpdateIndicator(updater: model.updater) { model.page = "settings" }
             if model.demo { Text("演示数据").font(.system(size: 10, weight: .medium)).foregroundStyle(Palette.accent).padding(.horizontal, 9).padding(.vertical, 5).background(Palette.accentWash, in: Capsule()) }
             Button { model.openCodex() } label: { HStack(spacing: 5) { Text("打开 Codex"); Image(systemName: "arrow.up.right").font(.system(size: 9)) } }
                 .buttonStyle(.plain).foregroundStyle(Palette.muted).disabled(model.busy)
@@ -199,6 +200,9 @@ struct RootView: View {
                 Picker("显示模式", selection: Binding(get: { model.library.appearance }, set: { model.setAppearance($0) })) {
                     Text("跟随系统").tag("system"); Text("浅色").tag("light"); Text("深色").tag("dark")
                 }.pickerStyle(.segmented).labelsHidden().frame(width: 270).disabled(model.busy)
+            }
+            settingsBlock("软件更新", symbol: "arrow.down.circle") {
+                UpdatePanel(updater: model.updater)
             }
             settingsBlock("登录资料只留在本机", symbol: "lock.shield") {
                 VStack(alignment: .leading, spacing: 11) {

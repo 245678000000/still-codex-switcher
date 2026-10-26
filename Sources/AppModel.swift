@@ -17,6 +17,7 @@ import SwiftUI
     let paths: AppPaths
     let vault: SecretVault
     let demo: Bool
+    let updater: UpdateController
     let broker = LoginBroker()
     @Published var quotas: [UUID: QuotaState] = [:]
     @Published private(set) var refreshingQuotas = false
@@ -31,6 +32,7 @@ import SwiftUI
     var appearance: ColorScheme? { library.appearance == "dark" ? .dark : library.appearance == "light" ? .light : nil }
     init(paths: AppPaths = .live(), vault: SecretVault = KeychainVault(), demo: Bool = false) {
         self.paths = paths; self.vault = vault; self.demo = demo
+        self.updater = UpdateController(demo: demo)
         if demo {
             library.accounts = DemoData.accounts
             current = Identity(key: library.accounts[0].identityKey, email: library.accounts[0].email, plan: "plus")

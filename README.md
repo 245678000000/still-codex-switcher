@@ -6,7 +6,9 @@
 
 **平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
 
-**[下载 macOS 额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.1.0-preview.1)**：每个账号的 5 小时 / 7 天剩余额度、重置时间、单个/全部刷新与低额度提示。查询时不切换账号。详见 [Mac 版说明](docs/macos-quota.md)。
+**[下载 macOS 自动检查更新版 1.2.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.2.0-preview.1)**：保留每个账号的 5 小时 / 7 天剩余额度，并加入启动时自动检查更新、手动检查、新版本说明与下载入口。详见 [更新功能说明](docs/macos-updates.md) 和 [额度说明](docs/macos-quota.md)。
+
+旧版需要先手动安装一次本版，之后即可收到更新提示。检查器不自动替换应用或退出 Codex。
 
 Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、重置时间与刷新状态**。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
 
@@ -16,9 +18,17 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 
 <sub>截图为 `--demo` 演示模式，账号与额度均为虚构。</sub>
 
+### 自动检查更新
+
+| 浅色更新提示 | 深色更新提示 |
+|---|---|
+| ![浅色更新提示](docs/macos-updates-light.png) | ![深色更新提示](docs/macos-updates-dark.png) |
+
+<sub>更新提示中的 1.3.0-preview.1 为虚构演示；当前发布为 1.2.0-preview.1。</sub>
+
 ## 第一次使用
 
-1. 按下方「源码与构建」编译，或从 [macOS 额度预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.1.0-preview.1) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
+1. 按下方「源码与构建」编译，或从 [macOS 更新预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.2.0-preview.1) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
 2. 打开栖言，点击 **保存当前账号**。已有的 Codex 登录会话会保存到本机钥匙串；不需要向栖言输入密码。
 3. 点击 **添加账号**，在浏览器的 OpenAI 官方页面登录另一个账号。如果浏览器仍使用原账号，请在登录页面选择要添加的账号。同一账号重复添加会更新原记录。
 4. 需要切换时，先保存 Codex 正在进行的工作，并结束其他共享登录的 Codex 命令行会话。
@@ -27,6 +37,9 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 这是“点选账号后重启生效”，不是在仍运行的 Codex 窗口中即时热切换。
 
 ## 功能
+
+- 自动检查 Mac 更新：启动时及持续运行每 12 小时检查；支持关闭自动检查、选择是否接收预览版。
+- 应用菜单、菜单栏和偏好页均可手动检查；发现新版后查看说明并打开 GitHub 下载，不自动安装。
 
 - 每个账号的 5 小时 / 7 天剩余额度与重置时间；主窗口可见时约 5 分钟刷新，支持手动刷新和停止。
 - 额度查询使用独立官方 CLI，不改变当前登录；未知值显示「—」，失败保留并标注上次结果。
@@ -65,9 +78,10 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 
 ## 测试结果与尚待验证
 
-本次额度版详见 [macOS 额度验收记录](Tests/macos-quota-validation.md)；旧版记录保留在 `Tests/验收记录.md`。
+本次更新功能详见 [macOS 更新验收记录](Tests/macos-updates-validation.md)。此前额度验收见 [额度记录](Tests/macos-quota-validation.md)，最初版本记录保留在 `Tests/验收记录.md`。
 
-- 本次 106 项本地测试通过，包括额度解析、子进程取消/超时/清理，以及钥匙串的**独立测试服务**存取与删除；所有凭据均为虚构测试数据。
+- 本次 176 项本地测试通过，包含更新版本/渠道/频率/URL校验与原额度、账号、**独立钥匙串测试服务**回归；所有凭据均为虚构测试数据。
+- 已由打包 App 实际访问 GitHub 公开版本列表并验证旧版比较；没有创建账号模型或加载登录凭据。
 - 当前官方 CLI 的 4 项合成令牌协议检查通过；真实账号额度读取仍待登录后核对。
 - 旧版已对当时的官方 CLI 验证初始化、空账号读取、发起 OAuth、取消 OAuth；本次未重新运行真实登录流程，也未替换当前 Codex 账号。
 - 已编译、签名、打包，并从 ZIP 重新解压验证。
@@ -90,11 +104,12 @@ bash scripts/build.sh /private/tmp/still-switcher-dist
 ```sh
 "$APP/Contents/MacOS/StillCodexSwitcher" --self-test
 "$APP/Contents/MacOS/StillCodexSwitcher" --self-test --keychain-test
+"$APP/Contents/MacOS/StillCodexSwitcher" --update-check-test
 "$APP/Contents/MacOS/StillCodexSwitcher" --demo
 "$APP/Contents/MacOS/StillCodexSwitcher" --render /private/tmp/preview.png --dark
 ```
 
-`--demo` 和 `--render` 使用虚构账号，不读取真实 auth.json，不切换 Codex。`--keychain-test` 只使用随机命名的本工具测试服务，测试结束删除测试项目。
+`--update-check-test` 仅匿名请求公开 GitHub 发布列表。`--demo` 和 `--render` 使用虚构账号，不读取真实 auth.json，不切换 Codex。`--keychain-test` 只使用随机命名的本工具测试服务，测试结束删除测试项目。
 
 ## Windows
 

@@ -6,16 +6,30 @@ import SwiftUI
     var model: SwitcherModel!
     var status: NSStatusItem?
     var quotaTimer: Timer?
+    var updateTimer: Timer?
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         if args.contains("--self-test") {
             Task { let success = await SelfTests.run(); exit(success ? 0 : 1) }; return
+        }
+        if args.contains("--update-check-test") {
+            Task {
+                do {
+                    let releases = try await UpdateFeed.fetch()
+                    print("PASS public GitHub feed: \(releases.count) compatible Mac releases")
+                    if let old = ReleaseVersion("1.0.0"), let newer = MacRelease.newest(releases, current: old, previews: true) {
+                        print("PASS older-version comparison: \(newer.tag)")
+                    } else { print("FAIL expected a Mac release newer than 1.0.0"); exit(1) }
+                    print("RESULT update feed smoke passed; no account model or credentials loaded"); exit(0)
+                } catch { print("FAIL update feed smoke: \(error.localizedDescription)"); exit(1) }
+            }; return
         }
         let demo = args.contains("--demo") || args.contains("--render")
         model = SwitcherModel(demo: demo)
         if args.contains("--dark") { model.library.appearance = "dark" }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
+        if demo && args.contains("--update-demo"), let release = MacRelease.parse(UpdateTests.fixture("macos-v1.3.0-preview.1")) { model.updater.seedPreview(release) }
         if args.contains("--render"), let index = args.firstIndex(of: "--render"), args.count > index + 1 {
             render(to: args[index + 1]); return
         }
@@ -27,6 +41,10 @@ import SwiftUI
         w.delegate = self; w.center(); w.makeKeyAndOrderFront(nil); window = w
         installMenu(); installStatus(); NSApp.activate(ignoringOtherApps: true)
         if !demo {
+            model.updater.check(automatic: true)
+            updateTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.model.updater.check(automatic: true) }
+            }
             model.refreshQuotas(automatic: true)
             quotaTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.model.quotaTick(visible: self?.window?.isVisible == true && self?.window?.isMiniaturized == false) }
@@ -51,6 +69,7 @@ import SwiftUI
         let menu = NSMenu(); let app = NSMenuItem(); menu.addItem(app)
         let submenu = NSMenu(); app.submenu = submenu
         submenu.addItem(withTitle: "关于栖言", action: #selector(about), keyEquivalent: "")
+        submenu.addItem(withTitle: "检查更新…", action: #selector(checkUpdates), keyEquivalent: "").target = self
         submenu.addItem(.separator())
         submenu.addItem(withTitle: "隐藏栖言", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         submenu.addItem(withTitle: "退出栖言", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -82,6 +101,7 @@ import SwiftUI
         }
         menu.addItem(.separator())
         menu.addItem(withTitle: "显示账号空间", action: #selector(showWindow), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "检查更新…", action: #selector(checkUpdates), keyEquivalent: "").target = self
         menu.addItem(withTitle: "退出栖言", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
         status?.menu = menu; status?.button?.performClick(nil); status?.menu = nil
     }
@@ -92,14 +112,15 @@ import SwiftUI
     @objc private func showWindow() { window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     @objc private func saveCurrent() { guard !model.busy else { return }; model.saveCurrent() }
     @objc private func add() { guard !model.busy else { return }; model.addAccount() }
+    @objc private func checkUpdates() { model.page = "settings"; showWindow(); model.updater.check() }
     @objc private func about() {
-        let alert = NSAlert(); alert.messageText = "栖言 · Codex 账号 1.1"
+        let alert = NSAlert(); alert.messageText = "栖言 · Codex 账号 " + AppRelease.current
         alert.informativeText = "独立的本机账号切换工具。\nApple Silicon · macOS 14+\n与 OpenAI 无官方关联。"
         alert.runModal()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if model?.busy == true && model?.loginWaiting == false { NSSound.beep(); showWindow(); return .terminateCancel }
-        model?.broker.cancel(); model?.cancelQuotaRefresh()
+        model?.broker.cancel(); model?.cancelQuotaRefresh(); model?.updater.cancel()
         if model?.broker.cleaning == true || model?.refreshingQuotas == true {
             Task {
                 for _ in 0..<100 {
@@ -114,14 +135,14 @@ import SwiftUI
         return .terminateNow
     }
     func windowWillClose(_ notification: Notification) { model?.cancelQuotaRefresh() }
-    func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate() }
+    func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate(); updateTimer?.invalidate(); model?.updater.cancel() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showWindow(); return true }
 }
 @main struct Main {
     @MainActor static func main() {
         let app = NSApplication.shared; let delegate = AppDelegate()
-        app.setActivationPolicy(CommandLine.arguments.contains("--self-test") || CommandLine.arguments.contains("--render") ? .prohibited : .regular)
+        app.setActivationPolicy(CommandLine.arguments.contains("--self-test") || CommandLine.arguments.contains("--render") || CommandLine.arguments.contains("--update-check-test") ? .prohibited : .regular)
         app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }
