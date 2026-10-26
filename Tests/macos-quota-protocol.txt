@@ -1,0 +1,6 @@
+codex-cli 0.164.0-alpha.11.1
+PASS official CLI initialization with experimental capability
+PASS official CLI external token protocol accepted synthetic input
+PASS ephemeral mode persisted no auth.json
+PASS synthetic access token absent from child files
+RESULT 4 protocol checks passed; no real login, rate-limit request or model request

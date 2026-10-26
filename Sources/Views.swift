@@ -44,14 +44,14 @@ struct RootView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: "key.horizontal").font(.system(size: 21, weight: .light)).foregroundStyle(Palette.accent)
                 Text("留在本机，随时就位。 ").font(.system(size: 12, weight: .medium))
-                Text("凭据存入 macOS 钥匙串。\n不保存账号密码，不上传登录资料。")
+                Text("凭据存入 macOS 钥匙串。\n不保存账号密码。额度查询仅连接官方服务。")
                     .font(.system(size: 10.5)).foregroundStyle(Palette.muted).lineSpacing(5)
             }.padding(15).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Palette.surface.opacity(0.65), in: RoundedRectangle(cornerRadius: 14)).padding(.bottom, 18)
             HStack(spacing: 6) {
                 Circle().fill(Palette.accent).frame(width: 5, height: 5)
                 Text(model.demo ? "演示模式 · 虚构账号" : "本地账号管理").font(.system(size: 10))
-                Spacer(); Text("1.0").font(.system(size: 10, design: .monospaced))
+                Spacer(); Text("1.1").font(.system(size: 10, design: .monospaced))
             }.foregroundStyle(Palette.muted).padding(.bottom, 22)
         }.padding(.horizontal, 19).background(Palette.sidebar)
     }
@@ -98,6 +98,15 @@ struct RootView: View {
                     }
                     Button { model.addAccount() } label: { Label("添加账号", systemImage: "plus").font(.system(size: 11, weight: .medium)) }
                         .buttonStyle(PressStyle()).disabled(model.busy || !model.libraryReady).keyboardShortcut("n", modifiers: .command)
+                }
+                HStack(spacing: 10) {
+                    Text("剩余额度 · 每 5 分钟刷新 · 不切换账号").font(.system(size: 10.5)).foregroundStyle(Palette.muted)
+                    Spacer()
+                    if model.refreshingQuotas {
+                        Button("停止") { model.cancelQuotaRefresh() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Palette.accent)
+                    }
+                    Button { model.refreshQuotas() } label: { Label("刷新全部额度", systemImage: "arrow.clockwise").font(.system(size: 10.5)) }
+                        .buttonStyle(PressStyle()).disabled(model.busy || model.refreshingQuotas || !model.libraryReady)
                 }
                 if model.library.accounts.isEmpty { emptyState }
                 else {
@@ -196,7 +205,7 @@ struct RootView: View {
                     note("保存什么", "保留官方登录生成的会话凭据；密码始终在官方登录页面输入。")
                     note("放在哪里", "保存的凭据和回滚备份进入 macOS 钥匙串；账号备注与邮箱保存在本机列表。Codex 使用中的 auth.json 仍由 Codex 管理。")
                     note("怎么切换", "退出 Codex → 保存最新凭据 → 原子替换登录文件 → 重新打开 Codex。聊天记录、配置与项目保持原样。")
-                    note("使用边界", "适配 ChatGPT 登录与 file 存储模式。登录状态过期或被撤销时，需要重新登录。订阅标签来自缓存，不代表实时额度。")
+                    note("使用边界", "适配 ChatGPT 登录与 file 存储模式。登录状态过期或被撤销时，需要重新登录。订阅标签来自缓存；额度独立查询，不写当前登录文件，不使用刷新令牌，过期登录需更新备份或重新添加。")
                 }
             }
             settingsBlock("恢复与兼容性", symbol: "arrow.uturn.backward") {
@@ -236,6 +245,7 @@ struct AccountRow: View {
     @State private var hover = false
     var isCurrent: Bool { account.identityKey == model.current?.key }
     var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
         HStack(spacing: 13) {
             AccountAvatar(account: account)
             VStack(alignment: .leading, spacing: 6) {
@@ -259,6 +269,11 @@ struct AccountRow: View {
                 Button("移除保存记录…") { model.remove(account) }
             } label: { Image(systemName: "ellipsis").frame(width: 18, height: 24).foregroundStyle(Palette.muted) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().disabled(model.busy).help("账号操作")
+        }
+        Hairline()
+        AccountQuotaView(state: model.quotas[account.id] ?? QuotaState(), disabled: model.busy || model.refreshingQuotas) {
+            model.refreshQuotas(accountID: account.id)
+        }
         }.padding(.horizontal, 16).padding(.vertical, 14)
             .background(hover ? Palette.surface : Palette.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).stroke(isCurrent ? Palette.accent.opacity(0.28) : Palette.line, lineWidth: 1))

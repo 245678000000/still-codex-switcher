@@ -18,6 +18,10 @@ import SwiftUI
     let vault: SecretVault
     let demo: Bool
     let broker = LoginBroker()
+    @Published var quotas: [UUID: QuotaState] = [:]
+    @Published private(set) var refreshingQuotas = false
+    private var quotaTask: Task<Void, Never>?
+
     private var operation: OperationLock?
     private var observer: NSObjectProtocol?
     var accounts: [SavedAccount] {
@@ -31,6 +35,9 @@ import SwiftUI
             library.accounts = DemoData.accounts
             current = Identity(key: library.accounts[0].identityKey, email: library.accounts[0].email, plan: "plus")
             message = "界面演示 · 使用虚构账号，不读取或切换真实登录状态。"
+            let now = Date()
+            quotas[library.accounts[0].id] = QuotaState(snapshot: QuotaSnapshot(fiveHours: QuotaWindow(remaining: 76, resetsAt: now.addingTimeInterval(10800)), sevenDays: QuotaWindow(remaining: 42, resetsAt: now.addingTimeInterval(345600)), fetchedAt: now))
+            quotas[library.accounts[1].id] = QuotaState(snapshot: QuotaSnapshot(fiveHours: QuotaWindow(remaining: 18, resetsAt: now.addingTimeInterval(2400)), sevenDays: QuotaWindow(remaining: 8, resetsAt: now.addingTimeInterval(86400)), fetchedAt: now))
             return
         }
         do { library = try SecureFile.loadLibrary(paths.metadata) }
@@ -118,6 +125,9 @@ import SwiftUI
         }
     }
     private func switchTo(_ target: Data, label: String) async throws {
+        // Finish our isolated CLI before the desktop's helper-process shutdown check.
+        // busy is already set, so neither the timer nor a manual refresh can restart it.
+        if let pending = quotaTask { pending.cancel(); await pending.value }
         try SecureFile.checkFileMode(paths.config)
         guard let app = CodexDesktop.find() else { throw SwitchError("未找到 Codex 桌面端，请先安装并打开一次。") }
         _ = try Identity.read(target)
@@ -170,7 +180,7 @@ import SwiftUI
             let previous = try vault.get(account.id.uuidString)
             try vault.remove(account.id.uuidString)
             var next = library; next.accounts.removeAll { $0.id == account.id }
-            do { try SecureFile.saveLibrary(next, to: paths.metadata); library = next }
+            do { try SecureFile.saveLibrary(next, to: paths.metadata); library = next; quotas.removeValue(forKey: account.id) }
             catch { if let previous { try? vault.put(previous, for: account.id.uuidString) }; throw error }
             message = "保存记录已移除，Codex 当前登录保持原样。"
         } catch { show(error) }
@@ -186,6 +196,59 @@ import SwiftUI
     func openCodex() {
         guard !demo else { return }
         Task { do { guard let app = CodexDesktop.find() else { throw SwitchError("未找到 Codex 桌面端。") }; try await app.launch() } catch { show(error) } }
+    }
+    func refreshQuotas(accountID: UUID? = nil, automatic: Bool = false) {
+        guard !busy, !refreshingQuotas, libraryReady else { return }
+        guard !demo else { message = "演示额度为虚构数据，正式运行从官方服务查询。"; return }
+        let now = Date()
+        let targets = library.accounts.filter { (accountID == nil || $0.id == accountID) && (quotas[$0.id] ?? QuotaState()).due(now: now, automatic: automatic) }
+        guard !targets.isEmpty else { if !automatic { message = "额度刚刚刷新过，请稍后再试。" }; return }
+        refreshingQuotas = true
+        quotaTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.refreshingQuotas = false; self.quotaTask = nil }
+            let cli = CodexDesktop.find()?.cli
+            for account in targets {
+                if Task.isCancelled || self.busy { break }
+                let old = self.quotas[account.id] ?? QuotaState()
+                var loading = old; loading.loading = true; loading.attemptedAt = Date(); self.quotas[account.id] = loading
+                do {
+                    guard let cli else { throw SwitchError("未找到官方 CLI，请先安装并打开一次 Codex。") }
+                    let auth = try self.quotaAuth(account)
+                    let snapshot = try await QuotaBroker.read(cli: cli, root: self.paths.root, auth: auth, expectedKey: account.identityKey)
+                    guard !Task.isCancelled else { throw CancellationError() }
+                    if self.library.accounts.contains(where: { $0.id == account.id && $0.identityKey == account.identityKey }) {
+                        self.quotas[account.id] = QuotaState(snapshot: snapshot, attemptedAt: Date())
+                    }
+                } catch {
+                    if self.library.accounts.contains(where: { $0.id == account.id && $0.identityKey == account.identityKey }) {
+                        var state = old; state.loading = false; state.attemptedAt = Date()
+                        state.error = error is CancellationError ? "已取消刷新" : (error as? SwitchError)?.message ?? "查询未完成，请检查网络或登录状态。"
+                        self.quotas[account.id] = state
+                    }
+                }
+            }
+            if !self.busy && !automatic { self.message = Task.isCancelled ? "已停止额度刷新，上次结果保留。" : "额度刷新结束，各账号状态见卡片。当前 Codex 未切换。" }
+        }
+    }
+    private func quotaAuth(_ account: SavedAccount) throws -> Data {
+        // Only these local reads hold the operation lock. Network requests don't block switching.
+        let gate = try OperationLock(paths.root)
+        return try withExtendedLifetime(gate) {
+            let saved = try SecureFile.loadLibrary(paths.metadata)
+            guard saved.accounts.contains(where: { $0.id == account.id && $0.identityKey == account.identityKey }) else { throw SwitchError("账号记录已变化，请刷新列表。") }
+            try SecureFile.checkFileMode(paths.config)
+            if let live = try SecureFile.read(paths.auth), let identity = try? Identity.read(live), identity.key == account.identityKey { return live }
+            guard let data = try vault.get(account.id.uuidString) else { throw SwitchError("登录备份缺失，请重新添加账号。") }
+            _ = try QuotaCredentials.read(data, expectedKey: account.identityKey)
+            return data
+        }
+    }
+    func cancelQuotaRefresh() { quotaTask?.cancel() }
+    func quotaTick(visible: Bool) {
+        guard visible else { return }
+        objectWillChange.send() // Refresh reset/stale labels even when no network query is due.
+        refreshQuotas(automatic: true)
     }
     private func confirm(title: String, detail: String, button: String) -> Bool {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail

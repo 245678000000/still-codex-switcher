@@ -5,6 +5,7 @@ import SwiftUI
     var window: NSWindow?
     var model: SwitcherModel!
     var status: NSStatusItem?
+    var quotaTimer: Timer?
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         if args.contains("--self-test") {
@@ -25,11 +26,17 @@ import SwiftUI
         w.setFrameAutosaveName(demo ? "StillSwitcherDemo" : "StillSwitcherMain")
         w.delegate = self; w.center(); w.makeKeyAndOrderFront(nil); window = w
         installMenu(); installStatus(); NSApp.activate(ignoringOtherApps: true)
+        if !demo {
+            model.refreshQuotas(automatic: true)
+            quotaTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.model.quotaTick(visible: self?.window?.isVisible == true && self?.window?.isMiniaturized == false) }
+            }
+        }
     }
     private func render(to path: String) {
         NSApp.appearance = NSAppearance(named: model.library.appearance == "dark" ? .darkAqua : .aqua)
         let view = NSHostingView(rootView: RootView(model: model))
-        let frame = NSRect(x: 0, y: 0, width: 1060, height: 760)
+        let frame = NSRect(x: 0, y: 0, width: 1060, height: 1120)
         let w = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         w.contentView = view; view.frame = frame; w.displayIfNeeded(); view.layoutSubtreeIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -86,26 +93,28 @@ import SwiftUI
     @objc private func saveCurrent() { guard !model.busy else { return }; model.saveCurrent() }
     @objc private func add() { guard !model.busy else { return }; model.addAccount() }
     @objc private func about() {
-        let alert = NSAlert(); alert.messageText = "栖言 · Codex 账号 1.0"
+        let alert = NSAlert(); alert.messageText = "栖言 · Codex 账号 1.1"
         alert.informativeText = "独立的本机账号切换工具。\nApple Silicon · macOS 14+\n与 OpenAI 无官方关联。"
         alert.runModal()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if model?.busy == true && model?.loginWaiting == false { NSSound.beep(); showWindow(); return .terminateCancel }
-        model?.broker.cancel()
-        if model?.broker.cleaning == true {
+        model?.broker.cancel(); model?.cancelQuotaRefresh()
+        if model?.broker.cleaning == true || model?.refreshingQuotas == true {
             Task {
                 for _ in 0..<100 {
-                    if self.model?.broker.cleaning != true { NSApp.reply(toApplicationShouldTerminate: true); return }
+                    if self.model?.broker.cleaning != true && self.model?.refreshingQuotas != true { NSApp.reply(toApplicationShouldTerminate: true); return }
                     try? await Task.sleep(for: .milliseconds(100))
                 }
-                self.model?.message = "登录组件仍在清理临时资料，请稍后再退出。"
+                self.model?.message = "后台组件仍在清理临时资料，请稍后再退出。"
                 NSApp.reply(toApplicationShouldTerminate: false)
             }
             return .terminateLater
         }
         return .terminateNow
     }
+    func windowWillClose(_ notification: Notification) { model?.cancelQuotaRefresh() }
+    func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showWindow(); return true }
 }

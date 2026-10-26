@@ -1,0 +1,107 @@
+PASS quota remaining, not used percentage
+PASS quota Unix seconds and fetch timestamp
+PASS quota Codex map preferred
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota missing or other bucket unknown
+PASS quota null map legacy fallback
+PASS quota matches duration not position
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota invalid window never means full
+PASS quota used high clamped
+PASS quota used low clamped
+PASS quota bad reset unknown
+PASS quota duplicate duration ambiguous
+PASS quota malformed map rejected
+PASS quota nonfinite numbers rejected
+PASS quota stale after five minutes
+PASS quota clock rollback stale
+PASS quota failure retains labelled snapshot
+PASS quota crossed reset never invents full
+PASS quota presentation
+PASS quota missing reset time
+PASS quota initial state unknown
+PASS quota loading status
+PASS quota manual cooldown
+PASS quota automatic cooldown
+PASS quota credentials use selected workspace
+PASS quota credential diagnostics redacted
+PASS quota mismatched identity rejected
+PASS quota experimental capability
+PASS quota unrelated reply ignored
+PASS quota initialize then ephemeral auth
+PASS quota protocol selected account
+PASS quota protocol sends no refresh token
+PASS quota only read method requested
+PASS quota protocol result parsed
+PASS quota external token renewal not performed
+PASS quota raw errors hidden
+PASS quota identities stay independent
+PASS quota physical and system alias paths accepted
+PASS quota subprocess roundtrip
+PASS quota successful child cleaned
+PASS quota running child cancelled
+PASS quota cancelled child cleaned
+PASS quota deadline enforced
+PASS quota timed-out child cleaned
+PASS quota spawn failure
+PASS quota failed spawn cleaned
+PASS quota symlink directory rejected
+PASS quota no credential file persisted
+PASS identity display metadata
+PASS different users stay distinct
+PASS workspaces stay distinct
+PASS refresh keeps stable identity
+PASS API key input rejected
+PASS malformed JSON rejected
+PASS oversized credential rejected
+PASS credential bytes preserved
+PASS auth file mode 0600
+PASS symlink reads rejected
+PASS symlink writes rejected
+PASS symlink target unchanged
+PASS default file mode accepted
+PASS explicit file mode accepted
+PASS keyring mode preserved and rejected
+PASS auto mode preserved and rejected
+PASS ephemeral mode preserved and rejected
+PASS account metadata roundtrip
+PASS metadata contains no tokens
+PASS duplicate metadata rejected
+PASS corrupt metadata rejected
+PASS corrupt metadata preserved
+PASS concurrent transaction locked
+PASS lock released after transaction
+PASS switch writes target and launches
+PASS rollback persisted before switch
+PASS launch failure rolls back
+PASS backup failure blocks switch
+PASS invalid target leaves current
+PASS foreign update preserved
+PASS absent original restored
+PASS official login host accepted
+PASS ChatGPT login host accepted
+PASS suffix impersonation rejected
+PASS prefix impersonation rejected
+PASS save current fixture account
+PASS saving twice deduplicates account
+PASS latest refresh token replaces saved fixture
+PASS account note trims whitespace
+PASS appearance persists
+PASS reopening restores list and current indicator
+PASS Keychain save failure leaves UI usable
+PASS save failure preserves live fixture
+PASS corrupt list blocks overwrite
+PASS blocked save preserves corrupt list for repair
+PASS isolated Keychain roundtrip
+PASS isolated Keychain update
+PASS isolated Keychain cleanup
+RESULT 106 passed, 0 failed. Fixtures only; no live Codex session touched.

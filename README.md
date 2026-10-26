@@ -6,17 +6,19 @@
 
 **平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
 
+**[下载 macOS 额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.1.0-preview.1)**：每个账号的 5 小时 / 7 天剩余额度、重置时间、单个/全部刷新与低额度提示。查询时不切换账号。详见 [Mac 版说明](docs/macos-quota.md)。
+
 Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、重置时间与刷新状态**。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
 
 | 浅色 | 深色 |
 |---|---|
-| ![浅色界面](docs/screenshot-light.png) | ![深色界面](docs/screenshot-dark.png) |
+| ![浅色界面](docs/macos-quota-light.png) | ![深色界面](docs/macos-quota-dark.png) |
 
-<sub>截图为 `--demo` 演示模式，账号均为虚构。</sub>
+<sub>截图为 `--demo` 演示模式，账号与额度均为虚构。</sub>
 
 ## 第一次使用
 
-1. 按下方「源码与构建」编译，或从 [Releases](https://github.com/245678000000/still-codex-switcher/releases/latest) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
+1. 按下方「源码与构建」编译，或从 [macOS 额度预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.1.0-preview.1) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
 2. 打开栖言，点击 **保存当前账号**。已有的 Codex 登录会话会保存到本机钥匙串；不需要向栖言输入密码。
 3. 点击 **添加账号**，在浏览器的 OpenAI 官方页面登录另一个账号。如果浏览器仍使用原账号，请在登录页面选择要添加的账号。同一账号重复添加会更新原记录。
 4. 需要切换时，先保存 Codex 正在进行的工作，并结束其他共享登录的 Codex 命令行会话。
@@ -25,6 +27,9 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 这是“点选账号后重启生效”，不是在仍运行的 Codex 窗口中即时热切换。
 
 ## 功能
+
+- 每个账号的 5 小时 / 7 天剩余额度与重置时间；主窗口可见时约 5 分钟刷新，支持手动刷新和停止。
+- 额度查询使用独立官方 CLI，不改变当前登录；未知值显示「—」，失败保留并标注上次结果。
 
 - 保存当前账号；独立添加其他账号，不先退出当前 Codex。
 - 账号列表、备注修改、搜索（超过三个账号时显示）、移除保存记录。
@@ -52,7 +57,7 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 
 ### 当前验证版本
 
-本机识别到的目标应用安装文件名是 `ChatGPT.app`，Bundle ID 为 `com.openai.codex`，版本 `26.1013.40934`。登录组件版本 `codex-cli 0.163.0-alpha.10.2`。工具通过 Bundle ID 找到正在运行或已安装的 Codex，并不把安装文件名写死。
+本机识别到的目标应用安装文件名是 `ChatGPT.app`，Bundle ID 为 `com.openai.codex`，版本 `26.1021.31345`。登录组件版本 `codex-cli 0.164.0-alpha.11.1`。工具通过 Bundle ID 找到正在运行或已安装的 Codex，并不把安装文件名写死。
 
 ### 安装提示
 
@@ -60,14 +65,15 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 
 ## 测试结果与尚待验证
 
-详见 `Tests/验收记录.md`。
+本次额度版详见 [macOS 额度验收记录](Tests/macos-quota-validation.md)；旧版记录保留在 `Tests/验收记录.md`。
 
-- 48 项本地测试通过，包括真实钥匙串的**独立测试服务**存取与删除；所有凭据均为虚构测试数据。
-- 已对本机官方 CLI 验证初始化、空账号读取、发起 OAuth、取消 OAuth；没有打开登录页面，也没有替换当前 Codex 账号。
+- 本次 106 项本地测试通过，包括额度解析、子进程取消/超时/清理，以及钥匙串的**独立测试服务**存取与删除；所有凭据均为虚构测试数据。
+- 当前官方 CLI 的 4 项合成令牌协议检查通过；真实账号额度读取仍待登录后核对。
+- 旧版已对当时的官方 CLI 验证初始化、空账号读取、发起 OAuth、取消 OAuth；本次未重新运行真实登录流程，也未替换当前 Codex 账号。
 - 已编译、签名、打包，并从 ZIP 重新解压验证。
 - 已渲染并检查浅色、深色、空列表与设置页。
-- 原生 UI 自动化访问未获批准，因此不把按钮交互与菜单栏操作标记为已验收。
-- **未完成真实账号的浏览器登录回调和完整“退出 → 换账号 → 重启 → 核对头像”验证。** 目前交付为可运行的首版，首次切换前务必保存任务。
+- 本次为离屏渲染，不把按钮交互与菜单栏操作标记为已验收。
+- **未完成真实账号的浏览器登录回调和完整“退出 → 换账号 → 重启 → 核对头像”验证。** 目前交付为可运行的预览版，首次切换前务必保存任务。
 
 ## 源码与构建
 

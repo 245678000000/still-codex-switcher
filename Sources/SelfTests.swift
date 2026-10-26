@@ -23,6 +23,7 @@ final class MemoryVault: SecretVault {
         defer { try? FileManager.default.removeItem(at: root) }
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try await QuotaTests.run(check, root: root.appendingPathComponent("quota-fixtures"))
             let a = try fixture(); let b = try fixture("test-user-b", account: "test-workspace-b")
             let ia = try Identity.read(a); let ib = try Identity.read(b)
             check(ia.email == "fixture@example.com" && ia.plan == "plus", "identity display metadata")
