@@ -7,8 +7,8 @@
 - 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1)。
 - Windows x64 自包含 EXE，适用于 Windows 10/11 的 Intel / AMD 64 位电脑；无需单独安装 .NET，无需管理员权限。
 - 已在 Mac 上交叉编译生成真正的 Windows PE32+ GUI 可执行文件；使用 Microsoft .NET 8.0.32 运行库。
-- 核心逻辑 **118 项模拟测试通过**（含 43 项额度用例）；Windows 原生窗口、DPAPI/ACL、官方登录回调及真实 Codex 重启切换**尚待 Windows 实机验收**。
-- 这是可供首次试用的便携首版，不把“编译通过”等同于“Windows 全流程已测试”。测试未读取或更改你的真实 Codex 登录。
+- 核心逻辑 **118 项模拟测试通过**（含 43 项额度用例）；GitHub Windows runner 上 **115 项核心测试 + 4 项 DPAPI/ACL 原生检查**、浅色/深色 WPF 渲染通过。官方登录回调、真实账号额度查询及重启切换仍待登录后核对。
+- 这是便携预览版，不把模拟账号的构建与自检等同于真实账号全流程验收。测试未读取或更改你的真实 Codex 登录。
 - 没有配置 Authenticode 发布者签名，Windows 可能显示来源提示。本程序不会修改 Defender、SmartScreen、执行策略等系统保护设置。
 
 ## Windows 1.1：每个账号的剩余额度
@@ -21,6 +21,12 @@
 - 无数据显示「— / 暂未提供数据」，首次显示「待刷新」。查询失败保留上次结果并标记；超过 5 分钟或跨过重置时间后标记待刷新，不猜测自动恢复到 100%。
 - 额度仅存在内存中。错误提示不显示令牌或服务器原始响应。查询仅连接官方服务，不向第三方发送凭据。
 - 本次更新仅 Windows，现有 Mac 版保持原样。真实账号的服务端额度读取仍待使用者登录后核对，测试均使用虚构账号。
+
+| 浅色额度卡 | 深色额度卡 |
+|---|---|
+| ![浅色额度卡](docs/quota-light.png) | ![深色额度卡](docs/quota-dark.png) |
+
+截图为 Windows runner 上的演示账号，不是真实余额。
 
 ## 三步开始
 

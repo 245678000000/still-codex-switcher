@@ -1,0 +1,120 @@
+PASS quota remaining, not used percentage
+PASS quota Unix seconds conversion
+PASS quota fetch timestamp
+PASS quota codex map preferred over legacy
+PASS quota absent or other bucket remains unknown
+PASS quota absent or other bucket remains unknown
+PASS quota absent or other bucket remains unknown
+PASS quota absent or other bucket remains unknown
+PASS quota absent or other bucket remains unknown
+PASS quota null map uses legacy
+PASS quota maps by duration, not position
+PASS quota missing or invalid window not treated as full
+PASS quota missing or invalid window not treated as full
+PASS quota missing or invalid window not treated as full
+PASS quota missing or invalid window not treated as full
+PASS quota missing or invalid window not treated as full
+PASS quota missing or invalid window not treated as full
+PASS quota missing or invalid window not treated as full
+PASS quota upper usage clamped
+PASS quota lower usage clamped
+PASS quota invalid timestamp stays unknown
+PASS quota ambiguous same-duration windows stay unknown
+PASS quota stale after five minutes
+PASS quota clock rollback marked stale
+PASS quota failed refresh retains stale snapshot
+PASS quota loading state
+PASS quota initial state not zero or full
+PASS quota percentage presentation
+PASS quota reset crossing never invents full quota
+PASS quota missing time and missing window distinguished
+PASS quota credentials workspace isolation
+PASS quota credentials redacted in diagnostics
+PASS quota wrong account credentials rejected
+PASS quota RPC sequence is read-only after ephemeral login
+PASS quota experimental capability negotiated
+PASS quota RPC uses selected account
+PASS quota RPC never sends refresh token
+PASS quota protocol returns parsed snapshot
+PASS quota accounts never share results or credentials
+PASS quota cancellation propagates
+PASS quota incompatible login protocol rejected
+PASS quota child launch failure cleans private home
+PASS quota never writes credentials to disk
+PASS identity metadata
+PASS distinct users
+PASS distinct workspaces
+PASS stable identity after refresh
+PASS missing token rejected
+PASS malformed JSON rejected
+PASS API key rejected
+PASS empty identity rejected
+PASS empty refresh rejected
+PASS oversize rejected
+PASS missing auth handled
+PASS atomic initial write
+PASS atomic replacement
+PASS temporary file cleanup
+PASS ACL failure blocks plaintext write
+PASS ACL failure preserves current
+PASS default file mode
+PASS explicit file mode
+PASS quoted file mode key
+PASS keyring mode not changed
+PASS keyring config preserved
+PASS auto mode not changed
+PASS auto config preserved
+PASS ephemeral mode not changed
+PASS ephemeral config preserved
+PASS BOM config mode checked
+PASS new empty library
+PASS capture credentials
+PASS deduplicate capture
+PASS latest refresh saved
+PASS metadata has no credentials
+PASS second account added
+PASS rename trims whitespace
+PASS blank note rejected
+PASS oversize note rejected
+PASS library survives reopen
+PASS remove saved record
+PASS remove leaves current file
+PASS vault failure blocks capture
+PASS vault failure preserves metadata
+PASS duplicate IDs rejected
+PASS duplicate identities rejected
+PASS corrupt metadata rejected
+PASS corrupt metadata preserved
+PASS concurrent operation blocked
+PASS operation lock released
+PASS switch and launch fixture
+PASS durable rollback before switch
+PASS launch failure reported
+PASS launch failure restores original
+PASS backup failure blocks switch
+PASS backup failure preserves original
+PASS invalid target rejected
+PASS invalid target leaves current
+PASS external modification reported
+PASS external modification preserved
+PASS backup race detected
+PASS backup race preserved
+PASS empty-original launch failure
+PASS empty original restored
+PASS pluggable vault roundtrip
+PASS vault passes data through protector
+PASS vault traversal rejected
+PASS vault removal
+PASS official OAuth host accepted
+PASS official OAuth host accepted
+PASS official OAuth host accepted
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+PASS nonofficial OAuth URL rejected
+RESULT 115 passed, 0 failed. Synthetic fixtures only; no live account read or changed.
+PASS Windows DPAPI roundtrip
+PASS encrypted on disk
+PASS protected file ACL
+PASS Windows vault cleanup
