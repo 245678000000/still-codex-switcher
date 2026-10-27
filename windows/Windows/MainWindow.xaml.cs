@@ -33,10 +33,11 @@ public partial class MainWindow : Window
         vault = new EncryptedVault(Path.Combine(root, "vault"), new WindowsProtector(), PrivateAccess.Set);
         store = new(paths, vault, PrivateAccess.Set);
         InitializeComponent();
+        TokensPage.Configure(paths.CodexHome, demo);
         if (demo)
         {
             library.Accounts = new[] { ("Personal", "personal@example.com", "plus"), ("工作空间", "work@example.com", "team"), ("日常探索", "explore@example.com", "free") }.Select((v, i) => new Account(Guid.NewGuid(), "demo-" + i, v.Item1, v.Item2, v.Item3, DateTimeOffset.Now, i)).ToList();
-            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.1";
+            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.2";
             StatusText.Text = "界面演示：不读取真实账号，也不切换 Codex。";
             var now = DateTimeOffset.UtcNow;
             quotas[library.Accounts[0].Id] = new(new(new(76, now.AddHours(3)), new(42, now.AddDays(4)), now));
@@ -52,10 +53,11 @@ public partial class MainWindow : Window
         quotaTimer.Tick += async (_, _) =>
         {
             RenderAccounts();
+            if (TokensPage.Visibility == Visibility.Visible && IsVisible && WindowState != WindowState.Minimized) await TokensPage.RefreshAsync();
             if (!demo && IsVisible && WindowState != WindowState.Minimized && !busy && !refreshingQuotas)
                 await RefreshQuotasAsync(onlyDue: true);
         };
-        Closed += (_, _) => { quotaTimer.Stop(); quotaCancel?.Cancel(); };
+        Closed += (_, _) => { quotaTimer.Stop(); quotaCancel?.Cancel(); TokensPage.Cancel(); };
     }
     static string ErrorText(Exception ex) => ex is UserError ? ex.Message : ex is UnauthorizedAccessException ? "目录或进程访问受限。请使用普通用户运行，并检查路径权限。" : "操作未完成（" + ex.GetType().Name + "）。请检查使用说明与本地目录，账号凭据不会写入错误日志。";
     async Task Run(Func<Task> action, bool reload = true)
@@ -119,11 +121,13 @@ public partial class MainWindow : Window
     void SearchChanged(object sender, TextChangedEventArgs e) => RenderAccounts();
     void ShowAccounts(object sender, RoutedEventArgs e)
     {
+        TokensPage.Visibility = Visibility.Collapsed; TokensNav.Background = Brushes.Transparent;
         AccountsPage.Visibility = Visibility.Visible; SettingsPage.Visibility = Visibility.Collapsed;
         AccountsNav.SetResourceReference(BackgroundProperty, "WashBrush"); SettingsNav.Background = Brushes.Transparent; Breadcrumb.Text = "工作台   /   账号空间";
     }
     void ShowSettings(object sender, RoutedEventArgs e)
     {
+        TokensPage.Visibility = Visibility.Collapsed; TokensNav.Background = Brushes.Transparent;
         AccountsPage.Visibility = Visibility.Collapsed; SettingsPage.Visibility = Visibility.Visible;
         SettingsNav.SetResourceReference(BackgroundProperty, "WashBrush"); AccountsNav.Background = Brushes.Transparent; Breadcrumb.Text = "工作台   /   偏好与说明";
     }
@@ -222,6 +226,19 @@ public partial class MainWindow : Window
         dialog.Loaded += (_, _) => { text.Focus(); text.SelectAll(); };
         return dialog.ShowDialog() == true ? text.Text.Trim() : null;
     }
+    async void ShowTokens(object sender, RoutedEventArgs e)
+    {
+        AccountsPage.Visibility = Visibility.Collapsed; SettingsPage.Visibility = Visibility.Collapsed; TokensPage.Visibility = Visibility.Visible;
+        AccountsNav.Background = Brushes.Transparent; SettingsNav.Background = Brushes.Transparent;
+        TokensNav.SetResourceReference(BackgroundProperty, "WashBrush"); Breadcrumb.Text = "工作台   /   Token 统计"; MainScroll.ScrollToTop();
+        await TokensPage.RefreshAsync();
+    }
+    public void ShowDemoTokens(bool empty = false)
+    {
+        if (!demo) return;
+        TokensPage.SeedDemo(empty); ShowTokens(this, new RoutedEventArgs());
+    }
+    public bool CheckDemoTokens() => demo && TokensPage.CheckDemoUI();
     public void ShowDemoQuotaList() { if (demo) MainScroll.ScrollToBottom(); }
     public void SetDemoTheme(string theme) { if (demo) { library.Theme = theme; ApplyTheme(); Render(); } }
     bool IsDark()
@@ -234,6 +251,7 @@ public partial class MainWindow : Window
         string[] names = ["Background", "Sidebar", "Surface", "Ink", "Muted", "Line", "Accent", "Wash", "Button", "ButtonText"];
         string[] colors = IsDark() ? ["#181E1B", "#202823", "#242D27", "#E4EDE7", "#A1B3A7", "#354039", "#8EC5A1", "#30463A", "#A5CFB2", "#1D3527"] : ["#F8FAF9", "#EFF3F1", "#FFFFFF", "#243C32", "#6E8176", "#E1E8E3", "#326F54", "#E7F0E9", "#2E6049", "#FFFFFF"];
         for (var i = 0; i < names.Length; i++) Application.Current.Resources[names[i] + "Brush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colors[i]));
+        TokensPage.Paint();
     }
     async void ThemeClick(object sender, RoutedEventArgs e)
     {

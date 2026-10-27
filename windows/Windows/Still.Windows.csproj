@@ -5,10 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
     <AssemblyName>StillCodexSwitcher</AssemblyName><RootNamespace>Still.Windows</RootNamespace>
     <RuntimeFrameworkVersion>8.0.32</RuntimeFrameworkVersion>
-    <Version>1.1.0</Version><Company>Still Local Tools</Company><Product>栖言 Codex 账号</Product>
+    <Version>1.2.0</Version><InformationalVersion>1.2.0-preview.1</InformationalVersion><Company>Still Local Tools</Company><Product>栖言 Codex 账号</Product>
     <ApplicationManifest>app.manifest</ApplicationManifest><ApplicationIcon>AppIcon.ico</ApplicationIcon>
     <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed><DebugType>none</DebugType><DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../Core/Still.Core.csproj" /><Compile Include="../Tests/TestSuite.cs" Link="TestSuite.cs" /><Compile Include="../Tests/QuotaTests.cs" Link="QuotaTests.cs" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../Core/Still.Core.csproj" /><Compile Include="../Tests/TestSuite.cs" Link="TestSuite.cs" /><Compile Include="../Tests/QuotaTests.cs" Link="QuotaTests.cs" /><Compile Include="../Tests/TokenUsageTests.cs" Link="TokenUsageTests.cs" /></ItemGroup>
 </Project>

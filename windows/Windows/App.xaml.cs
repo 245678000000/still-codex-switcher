@@ -35,6 +35,12 @@ public partial class App : Application
             var window = new MainWindow(e.Args.Contains("--demo") || render >= 0); MainWindow = window;
             if (e.Args.Contains("--dark")) window.SetDemoTheme("dark");
             window.Show();
+            if (e.Args.Contains("--render-tokens"))
+            {
+                window.ShowDemoTokens(e.Args.Contains("--tokens-empty"));
+                if (!window.CheckDemoTokens()) throw new Exception("Synthetic Token UI check failed");
+                window.ShowDemoTokens(e.Args.Contains("--tokens-empty"));
+            }
             if (render >= 0 && render + 1 < e.Args.Length)
             {
                 await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -45,6 +51,11 @@ public partial class App : Application
                 }
                 window.UpdateLayout();
                 var content = (FrameworkElement)window.Content;
+                if (e.Args.Contains("--render-tokens"))
+                {
+                    var size = e.Args.Contains("--compact") ? new Size(940, 680) : new Size(1100, 1430);
+                    content.Measure(size); content.Arrange(new Rect(size)); content.UpdateLayout();
+                }
                 var bounds = new Rect(0, 0, content.ActualWidth, content.ActualHeight);
                 var visual = new System.Windows.Media.DrawingVisual();
                 using (var drawing = visual.RenderOpen())

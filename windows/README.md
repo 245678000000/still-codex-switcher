@@ -4,12 +4,22 @@
 
 ## 当前交付状态
 
-- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1)。
+- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.2.0-preview.1)。
 - Windows x64 自包含 EXE，适用于 Windows 10/11 的 Intel / AMD 64 位电脑；无需单独安装 .NET，无需管理员权限。
 - 已在 Mac 上交叉编译生成真正的 Windows PE32+ GUI 可执行文件；使用 Microsoft .NET 8.0.32 运行库。
-- 核心逻辑 **118 项模拟测试通过**（含 43 项额度用例）；GitHub Windows runner 上 **115 项核心测试 + 4 项 DPAPI/ACL 原生检查**、浅色/深色 WPF 渲染通过。官方登录回调、真实账号额度查询及重启切换仍待登录后核对。
+- 核心逻辑 **158 项模拟测试通过**（含 Token 和额度用例）；Windows DPAPI/ACL 原生检查与浅色、深色、小窗口、空状态 WPF 渲染由 GitHub Windows runner 验收，结果见发布页。官方登录回调、真实账号额度查询及重启切换仍待登录后核对。
 - 这是便携预览版，不把模拟账号的构建与自检等同于真实账号全流程验收。测试未读取或更改你的真实 Codex 登录。
 - 没有配置 Authenticode 发布者签名，Windows 可能显示来源提示。本程序不会修改 Defender、SmartScreen、执行策略等系统保护设置。
+
+## Windows 1.2：Token 消费统计
+
+左侧新增「Token 统计」：今日、近 7 天、近 30 天、全部；输入、缓存输入、输出、推理 Token；每日趋势、模型分布、悬停明细和 CSV 导出。后台只读本机日志，按累计增量去重，文件未变化时复用内存缓存；本页可见时每分钟刷新。
+
+这是**本机部分桌面主会话记录**，不是官方账单或剩余额度。VS Code 插件、独立 CLI、分叉/子代理、WSL、其他设备和临时预热不计入；历史会话可能跨账号，暂不按账号拆分。统计不启动模型请求，不触碰登录凭据。详细口径见 [统计说明](docs/token-statistics.md)。
+
+升级方法：退出旧切换器，将新 ZIP 完整解压到新目录，运行新版 EXE。原有账号库位于 LocalAppData，继续沿用；不复制或删除账号凭据。保留旧文件夹可回退。Mac 包与 Windows 包分别下载。
+
+本次仅新增统计页，现有账号切换行为保持原状，并未在此版本引入桌面/VS Code 登录目录隔离、Mac 自动预热或自动更新功能。
 
 ## Windows 1.1：每个账号的剩余额度
 

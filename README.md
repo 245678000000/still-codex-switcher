@@ -10,7 +10,7 @@
 
 已安装 1.2.0 或 1.3.0 的用户可开启「接收预览版本」，再点击「检查更新」下载新版。检查器不自动替换应用或退出 Codex。[更新功能说明](docs/macos-updates.md) · [额度说明](docs/macos-quota.md)
 
-Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、重置时间与刷新状态**。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
+Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.2.0-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、重置时间与刷新状态**。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
 
 | 浅色 | 深色 |
 |---|---|
@@ -116,7 +116,7 @@ bash scripts/build.sh /private/tmp/still-switcher-dist
 
 ## Windows
 
-下载 [Windows 额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1)。源码在 [`windows/`](windows/README.md)。在 Windows 上安装 .NET 8 SDK 后，进入该目录运行 `./scripts/build.ps1`。本次核心逻辑 118 项模拟测试已通过；Windows 原生验收进展见 `windows/docs/quota-validation.md`，真实账号查询与切换仍需登录后核对。手动验收工作流是 `.github/workflows/windows.yml`。
+下载 [Windows 额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.2.0-preview.1)。源码在 [`windows/`](windows/README.md)。在 Windows 上安装 .NET 8 SDK 后，进入该目录运行 `./scripts/build.ps1`。本次核心逻辑 118 项模拟测试已通过；Windows 原生验收进展见 `windows/docs/quota-validation.md`，真实账号查询与切换仍需登录后核对。手动验收工作流是 `.github/workflows/windows.yml`。
 
 ## 致谢
 
@@ -132,3 +132,13 @@ bash scripts/build.sh /private/tmp/still-switcher-dist
 - [Codex app-server 登录协议](https://developers.openai.com/codex/app-server)
 
 这是独立第三方本地工具，与 OpenAI 无官方关联。后续 Codex 登录存储或启动协议变化时，可能需要适配。
+
+## macOS Token 消费统计
+
+Mac 版新增左侧「Token 统计」：今日 / 近 7 天 / 近 30 天 / 全部、输入与输出、缓存与推理子项、每日趋势、模型分布、每日 CSV 导出。离线只读本机来源明确的桌面端主会话，不启动请求，也不更动登录或预热设置。
+
+这是本机部分会话统计，不是官方账户账单：插件、CLI、派生会话、临时预热及其他设备未计入；历史会话可能跨账号，不把用量归给当前账号。详见 [数据口径与验证](docs/macos-token-statistics.md)。
+
+## Windows Token 统计
+
+Windows 1.2 预览版同步本机桌面主会话 Token 统计：区间筛选、分类计数、趋势、模型分布和 CSV 导出。数据口径与 Mac 版一致，详见 [Windows 使用与升级说明](windows/README.md)。

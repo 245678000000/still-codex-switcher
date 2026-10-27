@@ -27,6 +27,16 @@ jobs:
           if ($p.ExitCode -ne 0) { throw 'Light render failed' }
           $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/dark.png",'--dark','--render-accounts' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw 'Dark render failed' }
+          foreach ($case in @('light','dark','empty','compact')) {
+            $arguments = @('--render',"$pwd/dist/tokens-$case.png",'--render-tokens')
+            if ($case -eq 'dark') { $arguments += '--dark' }
+            if ($case -eq 'empty') { $arguments += '--tokens-empty' }
+            if ($case -eq 'compact') { $arguments += '--compact' }
+            $p = Start-Process $exe -ArgumentList $arguments -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "Token $case render/UI tests failed" }
+          }
+          'PASS native Token UI: Today/Week/Month selection, golden totals, export readiness, empty state; four renders' | Set-Content dist/token-ui-tests.txt
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
