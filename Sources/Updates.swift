@@ -39,7 +39,7 @@ struct ReleaseVersion: Comparable {
 }
 
 enum AppRelease {
-    static let fallbackVersion = "1.3.0-preview.1"
+    static let fallbackVersion = "1.3.1-preview.1"
     static var current: String { Bundle.main.object(forInfoDictionaryKey: "StillUpdateVersion") as? String ?? fallbackVersion }
     static var short: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.2.0" }
     static let repository = "245678000000/still-codex-switcher"

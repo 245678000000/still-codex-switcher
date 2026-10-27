@@ -23,7 +23,9 @@ import SwiftUI
     @Published private(set) var refreshingQuotas = false
     private var quotaTask: Task<Void, Never>?
     @Published private(set) var warmingAccountID: UUID?
-    var hasAutoWarmup: Bool { library.accounts.contains { $0.warmup?.enabled == true && $0.warmup?.paused != true } }
+    @Published private var warmupNotices: [UUID: String] = [:]
+    func warmupEnabled(_ account: SavedAccount) -> Bool { account.warmup?.enabled == true && account.warmup?.scheduleVersion == 2 }
+    var hasAutoWarmup: Bool { library.accounts.contains { warmupEnabled($0) && $0.warmup?.paused != true } }
 
     private var operation: OperationLock?
     private var observer: NSObjectProtocol?
@@ -201,17 +203,17 @@ import SwiftUI
         guard !demo else { return }
         Task { do { guard let app = CodexDesktop.find() else { throw SwitchError("未找到 Codex 桌面端。") }; try await app.launch() } catch { show(error) } }
     }
-    func refreshQuotas(accountID: UUID? = nil, automatic: Bool = false, manualWarmup: Bool = false, enabledOnly: Bool = false) {
+    func refreshQuotas(accountID: UUID? = nil, automatic: Bool = false, manualWarmup: Bool = false, enabledOnly: Bool = false, forceRefresh: Bool = false, cliOverride: URL? = nil) {
         guard !busy, !refreshingQuotas, libraryReady else { return }
         guard !demo else { message = "演示额度为虚构数据，正式运行从官方服务查询。"; return }
         let now = Date()
-        let targets = library.accounts.filter { (accountID == nil || $0.id == accountID) && (!enabledOnly || $0.warmup?.enabled == true) && (quotas[$0.id] ?? QuotaState()).due(now: now, automatic: automatic) }
+        let targets = library.accounts.filter { (accountID == nil || $0.id == accountID) && (!enabledOnly || warmupEnabled($0)) && (forceRefresh || (quotas[$0.id] ?? QuotaState()).due(now: now, automatic: automatic)) }
         guard !targets.isEmpty else { if !automatic { message = "额度刚刚刷新过，请稍后再试。" }; return }
         refreshingQuotas = true
         quotaTask = Task { [weak self] in
             guard let self else { return }
             defer { self.refreshingQuotas = false; self.quotaTask = nil }
-            let cli = CodexDesktop.find()?.cli
+            let cli = cliOverride ?? CodexDesktop.find()?.cli
             for account in targets {
                 if Task.isCancelled || self.busy { break }
                 let old = self.quotas[account.id] ?? QuotaState()
@@ -230,6 +232,7 @@ import SwiftUI
                         var state = old; state.loading = false; state.attemptedAt = Date()
                         state.error = error is CancellationError ? "已取消刷新" : (error as? SwitchError)?.message ?? "查询未完成，请检查网络或登录状态。"
                         self.quotas[account.id] = state
+                        if manualWarmup { self.warmupNotices[account.id] = state.error }
                         if !(error is CancellationError) { self.pauseWarmupAfterQueryFailure(account, reason: state.error ?? "额度查询未完成") }
                     }
                 }
@@ -270,38 +273,46 @@ import SwiftUI
     }
     func warmupStatus(_ account: SavedAccount) -> String {
         if warmingAccountID == account.id { return "正在预热 · 可停止" }
+        if let notice = warmupNotices[account.id] { return notice }
         let r = account.warmup ?? WarmupRecord()
         let formatter = DateFormatter(); formatter.dateFormat = "MM-dd HH:mm"
         let stamp = r.lastAttempt.map { formatter.string(from: $0) + " · " } ?? ""
+        if r.enabled && r.scheduleVersion != 2 { return "预热规则已更新，请重新开启开关确认" }
         if !r.enabled { return r.result.map { "自动关闭 · " + stamp + $0 } ?? "默认关闭 · 开启后会产生实际用量" }
         if r.paused { return stamp + (r.result ?? "已暂停，请检查后重试") }
-        return stamp + (r.result ?? "等待额度确认与当前窗口结束")
+        let next = r.nextAt.map { " · 下次不早于 " + formatter.string(from: $0) } ?? ""
+        return stamp + (r.result ?? "等待首次预热") + next
     }
     func setWarmup(_ account: SavedAccount, enabled: Bool) {
         guard !busy else { return }
-        if enabled && !demo && !confirm(title: "为「\(account.label)」开启自动预热？", detail: "栖言运行且电脑唤醒时，每 5 分钟检查额度。5 小时窗口到期后发送一次「回复ok」，使用 GPT-6 Luna / low。会消耗实际额度，也可能涉及账户计费；不是补充额度。\n\n仅在 7 天剩余至少 1% 时运行。不切换当前账号，不刷新或回写登录凭证。令牌过期、请求失败或结果不明会暂停。关闭窗口仍可运行，退出栖言后停止。", button: "确认开启") { return }
+        if enabled && !demo && !confirm(title: "为「\(account.label)」开启自动预热？", detail: "栖言运行且电脑唤醒时，每 5 分钟检查额度。开启后首次检查会尝试发送一次「回复ok」；之后至少间隔 5 小时，并参考上次观察到的重置时间。使用 GPT-6 Luna / low。会消耗实际额度，也可能涉及账户计费；不是补充额度。\n\n仅在 7 天剩余至少 1% 时运行。不切换当前账号，不刷新或回写登录凭证。令牌过期、请求失败或结果不明会暂停。关闭窗口仍可运行，退出栖言后停止。", button: "确认开启") { return }
         do {
             if !demo { try begin("更新自动预热设置…") }
             defer { if !demo { end() } }
             guard let i = library.accounts.firstIndex(where: { $0.id == account.id }) else { return }
             var next = library; var record = next.accounts[i].warmup ?? WarmupRecord()
-            record.enabled = enabled; record.paused = false // Keep durable attempts even when toggled off/on.
+            record.enabled = enabled; record.paused = false; record.scheduleVersion = 2
+            record.nextAt = nil // lastAttempt still enforces the minimum interval after re-enabling.
+            warmupNotices.removeValue(forKey: account.id)
             next.accounts[i].warmup = record
             if !demo { try SecureFile.saveLibrary(next, to: paths.metadata) }
             library = next
-            message = enabled ? "已开启该账号的自动预热；到期后先核对最新额度。" : "已关闭该账号的自动预热。"
-        } catch { show(error) }
+            message = enabled ? "已开启该账号的自动预热，准备检查额度。" : "已关闭该账号的自动预热。"
+        } catch { show(error); return }
+        if enabled && !demo { refreshQuotas(accountID: account.id, automatic: true, forceRefresh: true) }
     }
     func requestWarmup(_ account: SavedAccount) {
         guard !busy, !refreshingQuotas else { return }
         guard !demo else { message = "演示模式：不会发送模型请求。"; return }
-        guard confirm(title: "检查并预热「\(account.label)」一次？", detail: "先重新查询额度；只有 5 小时窗口已到期、7 天余额至少 1% 时才发「回复ok」。这会产生实际模型用量。\n\n如果上次结果不明，重试可能再次产生用量；成功后仍以服务端窗口时间为准。", button: "确认检查并预热") else { return }
-        refreshQuotas(accountID: account.id, manualWarmup: true)
+        guard confirm(title: "检查并预热「\(account.label)」一次？", detail: "确认后立即重新查询额度；即使 5 小时重置时间还没到，也会尝试发一条「回复ok」，前提是 5 小时有余额、7 天余额至少 1%。这会产生实际模型用量；若窗口已在运行，这条消息不会把窗口重新开始。\n\n如果上次结果不明，重试可能再次产生用量；成功后仍以服务端窗口时间为准。", button: "确认检查并预热") else { return }
+        warmupNotices[account.id] = "正在检查额度…"
+        refreshQuotas(accountID: account.id, manualWarmup: true, forceRefresh: true)
     }
     func attemptWarmup(_ account: SavedAccount, snapshot: QuotaSnapshot, cli: URL, manual: Bool) async {
         guard !Task.isCancelled, let fresh = library.accounts.first(where: { $0.id == account.id }) else { return }
         if let reason = WarmupPolicy.reason(fresh.warmup ?? WarmupRecord(), snapshot: snapshot, manual: manual) {
-            if manual { message = reason }; return
+            if manual || reason != "等待下次预热时间" { warmupNotices[account.id] = reason }
+            if manual { message = "\(account.label)：\(reason)" }; return
         }
         do {
             // Read only the chosen access token source; neither broker rotates or writes auth.
@@ -311,18 +322,26 @@ import SwiftUI
             guard let i = library.accounts.firstIndex(where: { $0.id == fresh.id && $0.identityKey == fresh.identityKey }) else { return }
             var record = library.accounts[i].warmup ?? WarmupRecord()
             // Reloaded under the inter-process operation lock, so two app instances never claim together.
-            guard WarmupPolicy.reason(record, snapshot: snapshot, manual: manual) == nil, let reset = snapshot.fiveHours?.resetsAt else { return }
+            if let reason = WarmupPolicy.reason(record, snapshot: snapshot, manual: manual) { warmupNotices[fresh.id] = reason; return }
+            guard let reset = snapshot.fiveHours?.resetsAt else { warmupNotices[fresh.id] = "未提供 5 小时窗口，暂不预热"; return }
+            let previous = record
             record.lastAttempt = Date(); record.processedReset = max(record.processedReset ?? reset, reset)
-            record.result = "本窗口尝试已登记；若中断，请检查后手动重试"
+            record.paused = true // Durable pause before the turn; a crash never causes silent retries.
+            record.result = "预热尝试已登记；若意外中断，请检查后手动重试"
             var next = library; next.accounts[i].warmup = record
             try SecureFile.saveLibrary(next, to: paths.metadata); library = next // Durable BEFORE any model request.
-            warmingAccountID = fresh.id
+            warmingAccountID = fresh.id; warmupNotices.removeValue(forKey: fresh.id)
             do {
                 let result = try await QuotaBroker.warmup(cli: cli, root: paths.root, auth: auth, expectedKey: fresh.identityKey, reset: reset)
                 guard !Task.isCancelled else { throw CancellationError() }
                 quotas[fresh.id] = QuotaState(snapshot: result.snapshot, attemptedAt: Date())
-                record.paused = result.sent && !result.confirmed; record.result = result.message
-                if result.confirmed { record.lastConfirmed = Date() }
+                if result.sent {
+                    record.paused = false; record.result = result.message
+                    record.nextAt = WarmupPolicy.nextAfterSuccess(attempt: record.lastAttempt!, snapshot: result.snapshot)
+                    if result.confirmed { record.lastConfirmed = Date() }
+                } else {
+                    record = previous; record.result = result.message
+                }
             } catch {
                 record.paused = true
                 record.result = error is CancellationError ? "已停止 · 可能已产生用量，请检查后重试" : (error as? SwitchError)?.message ?? "预热结果不明，自动请求已暂停"
@@ -330,10 +349,13 @@ import SwiftUI
             next = library; next.accounts[i].warmup = record
             do { try SecureFile.saveLibrary(next, to: paths.metadata); library = next }
             catch { library = next; libraryReady = false; throw SwitchError("预热状态保存失败，已停止自动操作。请检查本机磁盘后重新打开。") }
+            if record.enabled && record.scheduleVersion == 2 { warmupNotices.removeValue(forKey: fresh.id) }
+            else { warmupNotices[fresh.id] = record.result }
             message = "\(fresh.label)：\(record.result ?? "已结束")"
         } catch {
             // No model turn is sent before the claim is durably saved.
             message = (error as? SwitchError)?.message ?? "预热准备未完成，请检查账号记录。"
+            warmupNotices[account.id] = message
         }
     }
     private func confirm(title: String, detail: String, button: String) -> Bool {

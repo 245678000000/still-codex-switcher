@@ -1,0 +1,3 @@
+OFFLINE synthetic ephemeral thread created
+PASS offline synthetic turn accepted: inProgress
+RESULT offline synthetic turn check passed; no real account and OS denies all network.

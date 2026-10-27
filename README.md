@@ -6,9 +6,9 @@
 
 **平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
 
-**[下载 macOS 到期预热版 1.3.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.0-preview.1)**：逐账号开启到期预热（默认关闭），保留额度显示和自动检查更新。预热会产生实际模型用量；仅使用访问令牌，不复制或刷新登录凭证。详细行为和测试边界见 [预热说明](docs/macos-window-warmup.md)。
+**[下载 macOS 账号预热修复版 1.3.1-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.1-preview.1)**：逐账号开启自动预热（默认关闭），手动预热可在重置时间之前尝试，保留额度显示和自动检查更新。预热会产生实际模型用量；仅使用访问令牌，不复制或刷新登录凭证。详细行为和测试边界见 [预热说明](docs/macos-window-warmup.md)。
 
-已安装 1.2.0 的用户可开启「接收预览版本」，再点击「检查更新」下载新版。检查器不自动替换应用或退出 Codex。[更新功能说明](docs/macos-updates.md) · [额度说明](docs/macos-quota.md)
+已安装 1.2.0 或 1.3.0 的用户可开启「接收预览版本」，再点击「检查更新」下载新版。检查器不自动替换应用或退出 Codex。[更新功能说明](docs/macos-updates.md) · [额度说明](docs/macos-quota.md)
 
 Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.1.0-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、重置时间与刷新状态**。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
 
@@ -28,7 +28,7 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 
 ## 第一次使用
 
-1. 按下方「源码与构建」编译，或从 [macOS 到期预热预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.0-preview.1) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
+1. 按下方「源码与构建」编译，或从 [macOS 到期预热预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.1-preview.1) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
 2. 打开栖言，点击 **保存当前账号**。已有的 Codex 登录会话会保存到本机钥匙串；不需要向栖言输入密码。
 3. 点击 **添加账号**，在浏览器的 OpenAI 官方页面登录另一个账号。如果浏览器仍使用原账号，请在登录页面选择要添加的账号。同一账号重复添加会更新原记录。
 4. 需要切换时，先保存 Codex 正在进行的工作，并结束其他共享登录的 Codex 命令行会话。
@@ -38,7 +38,7 @@ Windows 10/11 x64 的 [额度显示预览版](https://github.com/245678000000/st
 
 ## 功能
 
-- 到期预热：每个账号独立开关（默认关闭），支持确认后手动预热一次；先检查最新额度，失败或结果不明则暂停。
+- 账号预热：每个账号独立开关（默认关闭），首次开启会尝试一次，之后至少间隔 5 小时；手动预热可在重置时间之前尝试。失败或结果不明则暂停。旧版开启记录需重新确认。
 - 预热只发送最小模型请求，不切换当前账号、不刷新登录凭证；会消耗实际用量。电脑睡眠或退出栖言后停止。
 
 - 自动检查 Mac 更新：启动时及持续运行每 12 小时检查；支持关闭自动检查、选择是否接收预览版。

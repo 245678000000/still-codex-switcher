@@ -28,8 +28,8 @@ import SwiftUI
         model = SwitcherModel(demo: demo)
         if args.contains("--dark") { model.library.appearance = "dark" }
         if demo && args.contains("--warmup-demo") {
-            model.library.accounts[0].warmup = WarmupRecord(enabled: true, result: "等待当前窗口结束 · 不切换账号")
-            model.library.accounts[1].warmup = WarmupRecord(enabled: true, paused: true, result: "访问令牌过期 · 请更新登录备份")
+            model.library.accounts[0].warmup = WarmupRecord(enabled: true, result: "等待首次预热 · 不切换账号", scheduleVersion: 2)
+            model.library.accounts[1].warmup = WarmupRecord(enabled: true, paused: true, result: "访问令牌过期 · 请更新登录备份", scheduleVersion: 2)
         }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }

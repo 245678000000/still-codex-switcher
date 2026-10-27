@@ -5,8 +5,8 @@
 <key>CFBundleIdentifier</key><string>app.local.still.codex-switcher</string>
 <key>CFBundleName</key><string>栖言 Codex 账号</string>
 <key>CFBundleDisplayName</key><string>栖言 · Codex 账号</string>
-<key>CFBundleVersion</key><string>4</string><key>CFBundleShortVersionString</key><string>1.3.0</string>
-<key>StillUpdateVersion</key><string>1.3.0-preview.1</string>
+<key>CFBundleVersion</key><string>5</string><key>CFBundleShortVersionString</key><string>1.3.1</string>
+<key>StillUpdateVersion</key><string>1.3.1-preview.1</string>
 <key>CFBundlePackageType</key><string>APPL</string><key>CFBundleIconFile</key><string>AppIcon</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string><key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>

@@ -1,4 +1,4 @@
-/private/tmp/still-codex-build.d6SD5w/栖言 Codex 账号.app: replacing existing signature
+/private/tmp/still-codex-build.eCuGM9/栖言 Codex 账号.app: replacing existing signature
 PASS quota remaining, not used percentage
 PASS quota Unix seconds and fetch timestamp
 PASS quota Codex map preferred
@@ -128,33 +128,37 @@ PASS update network failure not called latest
 PASS update cancelled check never publishes
 PASS update demo makes no requests
 PASS warmup default off
-PASS warmup due eligible window
+PASS legacy auto setting requires new confirmation
+PASS manual warmup allowed before future reset
+PASS new opt-in first warmup can run immediately
 PASS warmup unknown quota skips
 PASS warmup stale quota skips
 PASS warmup clock rollback skips
-PASS warmup active window skips
-PASS warmup reset grace period
 PASS warmup weekly reserve
 PASS warmup unknown weekly balance skips
 PASS warmup plans without five hour window skip
-PASS warmup same window deduplicated
-PASS warmup older reset deduplicated
-PASS warmup explicit manual retry after confirmation allowed
+PASS manual warmup still respects exhausted quota
 PASS warmup changed reset still bounded by five hour cooldown
 PASS warmup manual cooldown bounded
+PASS warmup waits for remembered next time
+PASS warmup due even when server advances reset
+PASS warmup next time anchors prior reset plus buffer
 PASS warmup failures pause automatic mode
 PASS warmup sends only access token over pipe
-PASS warmup server recheck skips already active window
+PASS warmup recheck accepts advanced future reset
+PASS warmup sends only access token over pipe
+PASS warmup server recheck blocks exhausted quota
 PASS warmup sends only access token over pipe
 PASS warmup missing selected model stops without substitution
 PASS warmup isolated ephemeral read-only thread
 PASS warmup unexpected thread location stops before turn
 PASS warmup exactly one low effort turn
-PASS warmup tool reads restricted to fixture
+PASS warmup uses supported read-only policy without obsolete access
 PASS warmup token refresh request stops instead of rotating
 PASS warmup extra server tool request stops
-PASS warmup raw errors redacted
+PASS warmup shows stage and safe code without raw errors
 PASS warmup waits for completion then verifies limits
+PASS warmup post-send failure reports possible usage
 PASS warmup unchanged reset is not reported activated
 PASS warmup new reset confirmed from server
 PASS warmup subprocess synthetic end-to-end
@@ -164,11 +168,16 @@ PASS warmup timeout cleans child
 PASS warmup existing accounts remain disabled
 PASS warmup model commits claim and verified outcome
 PASS warmup never writes vault or active auth
+PASS warmup schedules future attempt after success
 PASS warmup model duplicate request suppressed
 PASS warmup dedup survives restart
 PASS warmup quota query failure pauses background scheduler
 PASS warmup saving refreshed credentials preserves settings
+PASS manual warmup bypasses fresh quota cooldown and displays result on card
+PASS manual warmup preserves active login fixture
+PASS unchanged server reset after successful turn is not a false failure
 PASS warmup claim persisted before network completion
+PASS warmup durable pending claim is paused on crash
 PASS warmup second instance leaves durable claim unchanged
 PASS warmup cancellation pauses and releases operation lock
 PASS warmup model cancellation cleans private data
@@ -217,6 +226,6 @@ PASS Keychain save failure leaves UI usable
 PASS save failure preserves live fixture
 PASS corrupt list blocks overwrite
 PASS blocked save preserves corrupt list for repair
-RESULT 218 passed, 0 failed. Fixtures only; no live Codex session touched.
+RESULT 227 passed, 0 failed. Fixtures only; no live Codex session touched.
 
-Built: /private/tmp/still-warmup-dist/Codex-Account-Switcher-macOS.zip
+Built: /private/tmp/still-warmup-fix-v5/Codex-Account-Switcher-macOS.zip

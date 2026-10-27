@@ -8,28 +8,46 @@ struct WarmupRecord: Codable, Equatable {
     var processedReset: Date?
     var lastConfirmed: Date?
     var result: String?
+    // v1 was opt-in for a different trigger. Reconfirm before v2 may run immediately.
+    var scheduleVersion: Int?
+    var nextAt: Date?
 }
 enum WarmupPolicy {
     static let model = "gpt-6-luna"
+    static func quotaReason(_ snapshot: QuotaSnapshot?, now: Date = Date()) -> String? {
+        guard let q = snapshot, now >= q.fetchedAt, now.timeIntervalSince(q.fetchedAt) < 90 else { return "额度数据待刷新" }
+        guard let five = q.fiveHours, five.resetsAt != nil else { return "未提供 5 小时窗口，暂不预热" }
+        guard five.remaining > 0 else { return "5 小时额度已用完，请等待重置" }
+        guard let week = q.sevenDays, week.remaining >= 1, let weekReset = week.resetsAt, weekReset > now else { return "7 天额度不足 1% 或数据待确认" }
+        return nil
+    }
     static func reason(_ record: WarmupRecord, snapshot: QuotaSnapshot?, now: Date = Date(), manual: Bool = false) -> String? {
         if !manual && !record.enabled { return "自动预热已关闭" }
+        if !manual && record.scheduleVersion != 2 { return "规则已更新，请重新开启自动预热" }
         if !manual && record.paused { return "自动预热已暂停，请检查后手动重试" }
-        guard let q = snapshot, now >= q.fetchedAt, now.timeIntervalSince(q.fetchedAt) < 90 else { return "等待最新额度" }
-        guard let reset = q.fiveHours?.resetsAt else { return "未提供 5 小时窗口，暂不预热" }
-        guard reset <= now.addingTimeInterval(-60) else { return "等待当前窗口结束（含 1 分钟缓冲）" }
-        guard let week = q.sevenDays, week.remaining >= 1, let weekReset = week.resetsAt, weekReset > now else { return "7 天额度不足 1% 或数据待确认" }
-        if let attempt = record.lastAttempt, now.timeIntervalSince(attempt) < (manual ? 60 : 18_000) { return "请求冷却中，稍后再检查" }
-        if !manual, let processed = record.processedReset, reset <= processed { return "本窗口已处理，等待新的重置时间" }
+        if let reason = quotaReason(snapshot, now: now) { return reason }
+        if let attempt = record.lastAttempt {
+            guard now >= attempt else { return "本机时间异常，请检查后重试" }
+            if now.timeIntervalSince(attempt) < (manual ? 60 : 18_000) { return "请求冷却中，稍后再检查" }
+        }
+        if !manual, let next = record.nextAt, now < next { return "等待下次预热时间" }
         return nil
+    }
+    static func nextAfterSuccess(attempt: Date, snapshot: QuotaSnapshot) -> Date {
+        // Keep the observed reset as an anchor; the next refresh may already report a later window.
+        let cooldown = attempt.addingTimeInterval(18_060)
+        guard let reset = snapshot.fiveHours?.resetsAt, reset > attempt else { return cooldown }
+        return max(cooldown, reset.addingTimeInterval(60))
     }
 }
 struct WarmupResult {
     let snapshot: QuotaSnapshot
     let sent: Bool
     let confirmed: Bool
+    var detail: String? = nil
     var message: String {
-        if !sent { return "额度已变化，本次未发送预热请求" }
-        return confirmed ? "预热完成 · 已确认新的窗口时间" : "请求已完成 · 新窗口待确认，自动预热已暂停"
+        if !sent { return detail ?? "额度状态变化，本次未发送预热消息" }
+        return "预热消息已发送 · 窗口状态以官方额度为准"
     }
 }
 struct WarmupProtocol {
@@ -65,7 +83,13 @@ struct WarmupProtocol {
             return .ignore
         }
         guard QuotaSnapshot.number(object["id"]) == Double(expected), expected > 0 else { return .ignore }
-        guard object["error"] == nil else { throw SwitchError("预热未完成，已暂停自动请求。请检查网络、登录和官方 CLI 版本。") }
+        if let error = object["error"] as? [String: Any] {
+            let stage = [1: "初始化", 2: "临时登录", 3: "额度检查", 4: "模型列表", 5: "会话创建", 6: "消息发送", 7: "结果检查"][expected] ?? "请求"
+            let code = (error["code"] as? Int).map { "（代码 \($0)）" } ?? ""
+            if expected == 7 { throw SwitchError("消息已发送，但额度复查未完成\(code)；可能已消耗额度，自动预热已暂停。") }
+            if expected == 6 { throw SwitchError("预热消息发送未完成\(code)，可能已消耗额度；自动预热已暂停。") }
+            throw SwitchError("预热\(stage)未完成\(code)，已暂停自动请求。请检查网络、登录和官方 CLI 版本。")
+        }
         guard let result = object["result"] as? [String: Any] else { throw SwitchError("预热响应格式异常，任务已暂停。") }
         switch expected {
         case 1:
@@ -77,8 +101,8 @@ struct WarmupProtocol {
         case 3:
             let q = try QuotaSnapshot.parse(result, now: now)
             // Re-check on the server immediately before a turn; stale UI data never authorizes a request.
-            if q.fiveHours?.resetsAt != reset || WarmupPolicy.reason(WarmupRecord(), snapshot: q, now: now, manual: true) != nil {
-                return .result(WarmupResult(snapshot: q, sent: false, confirmed: false))
+            if let reason = WarmupPolicy.quotaReason(q, now: now) {
+                return .result(WarmupResult(snapshot: q, sent: false, confirmed: false, detail: reason))
             }
             expected = 4; return .send([["id": 4, "method": "model/list", "params": ["limit": 100, "includeHidden": false]]])
         case 4:
@@ -109,7 +133,9 @@ struct WarmupProtocol {
             return .send([["id": 6, "method": "turn/start", "params": [
                 "threadId": id, "input": [["type": "text", "text": "回复ok"]],
                 "model": WarmupPolicy.model, "effort": "low", "approvalPolicy": "never",
-                "sandboxPolicy": ["type": "readOnly", "access": ["type": "restricted", "includePlatformDefaults": true, "readableRoots": [directory]]]
+                // The supported cross-version readOnly policy no longer accepts readOnly.access.
+                // Read-only is not a guarantee that every existing local file is unreadable.
+                "sandboxPolicy": ["type": "readOnly", "networkAccess": false]
             ]]])
         case 6:
             guard let turn = result["turn"] as? [String: Any], let id = turn["id"] as? String, !id.isEmpty else { throw SwitchError("预热消息确认异常，自动重试已暂停。") }
