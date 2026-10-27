@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text;
 
 namespace Still.Core;
 
@@ -25,27 +26,56 @@ public sealed class QuotaBroker(string cli, string root, Action<string, bool>? s
 }
 
 // One outstanding request per child. Tokens travel over redirected stdin only, never argv/env/files.
-public sealed class QuotaProcess : IQuotaRpc, IAsyncDisposable
+public sealed class QuotaProcess : IQuotaRpc, IWarmupTransport
 {
     readonly Process process;
     readonly Task drain;
     int nextId;
-    public QuotaProcess(string cli, string isolatedHome)
+    readonly char[] readBuffer = new char[4096];
+    int readOffset, readCount;
+    public static ProcessStartInfo CreateStartInfo(string cli, string isolatedHome)
     {
         var start = new ProcessStartInfo(cli) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = isolatedHome };
         foreach (var arg in new[] { "-c", "cli_auth_credentials_store=\"ephemeral\"", "-c", "analytics.enabled=false", "app-server" }) start.ArgumentList.Add(arg);
         foreach (var key in new[] { "OPENAI_API_KEY", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "OPENAI_BASE_URL", "CODEX_THREAD_ID", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE" }) start.Environment.Remove(key);
         start.Environment["CODEX_HOME"] = isolatedHome;
+        return start;
+    }
+    public QuotaProcess(string cli, string isolatedHome) : this(CreateStartInfo(cli, isolatedHome)) { }
+    public QuotaProcess(ProcessStartInfo start)
+    {
         process = new Process { StartInfo = start };
         try { if (!process.Start()) throw new UserError("官方额度查询组件未启动。"); }
         catch { process.Dispose(); throw; }
         drain = Task.Run(async () => { var buffer = new char[4096]; while (await process.StandardError.ReadAsync(buffer) > 0) { } });
         _ = drain.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
     }
-    async Task SendAsync(object message, CancellationToken cancellation)
+    public async Task SendAsync(object message, CancellationToken cancellation)
     {
         await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(message).AsMemory(), cancellation);
         await process.StandardInput.FlushAsync(cancellation);
+    }
+    public async Task<JsonElement> ReadAsync(CancellationToken cancellation)
+    {
+        var line = new StringBuilder();
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (readOffset == readCount)
+            {
+                readCount = await process.StandardOutput.ReadAsync(readBuffer.AsMemory(), cancellation); readOffset = 0;
+                if (readCount == 0) throw new UserError("官方组件已结束，请检查 CLI 版本或稍后重试。");
+            }
+            var end = Array.IndexOf(readBuffer, '\n', readOffset, readCount - readOffset);
+            var count = (end < 0 ? readCount : end) - readOffset;
+            if (line.Length + count > 2_000_000) throw new UserError("官方组件响应过大，本次任务已结束。");
+            line.Append(readBuffer, readOffset, count);
+            readOffset += count + (end < 0 ? 0 : 1);
+            if (end >= 0) break;
+        }
+        using var doc = JsonDocument.Parse(line.ToString());
+        if (doc.RootElement.ValueKind != JsonValueKind.Object) throw new UserError("官方组件响应格式异常。");
+        return doc.RootElement.Clone();
     }
     public Task NotifyAsync(string method, CancellationToken cancellation) => SendAsync(new { method }, cancellation);
     public async Task<JsonElement> CallAsync(string method, object? parameters, CancellationToken cancellation)
@@ -54,11 +84,7 @@ public sealed class QuotaProcess : IQuotaRpc, IAsyncDisposable
         await SendAsync(new { id, method, @params = parameters }, cancellation);
         while (true)
         {
-            var line = await process.StandardOutput.ReadLineAsync(cancellation);
-            if (line == null) throw new UserError("额度查询组件已结束，请更新官方 Codex 或重试。");
-            if (line.Length > 2_000_000) throw new UserError("额度响应过大，本次查询已结束。");
-            using var doc = JsonDocument.Parse(line); var obj = doc.RootElement;
-            if (obj.ValueKind != JsonValueKind.Object) throw new UserError("额度响应格式异常。");
+            var obj = await ReadAsync(cancellation);
             if (obj.TryGetProperty("method", out var serverMethod))
             {
                 if (obj.TryGetProperty("id", out var serverId))

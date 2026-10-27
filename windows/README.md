@@ -4,12 +4,20 @@
 
 ## 当前交付状态
 
-- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.2.0-preview.1)。
+- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.3.0-preview.1)。
 - Windows x64 自包含 EXE，适用于 Windows 10/11 的 Intel / AMD 64 位电脑；无需单独安装 .NET，无需管理员权限。
 - 已在 Mac 上交叉编译生成真正的 Windows PE32+ GUI 可执行文件；使用 Microsoft .NET 8.0.32 运行库。
-- 核心逻辑 **158 项模拟测试通过**（含 Token 和额度用例）；Windows DPAPI/ACL 原生检查与浅色、深色、小窗口、空状态 WPF 渲染由 GitHub Windows runner 验收，结果见发布页。官方登录回调、真实账号额度查询及重启切换仍待登录后核对。
+- 核心逻辑与子进程离线用例覆盖 Token、额度、自动预热、防重与取消清理；Windows DPAPI/ACL 原生检查与浅色、深色、小窗口、空状态 WPF 渲染由 GitHub Windows runner 验收，结果见发布页。官方登录回调、真实账号额度查询及重启切换仍待登录后核对。
 - 这是便携预览版，不把模拟账号的构建与自检等同于真实账号全流程验收。测试未读取或更改你的真实 Codex 登录。
 - 没有配置 Authenticode 发布者签名，Windows 可能显示来源提示。本程序不会修改 Defender、SmartScreen、执行策略等系统保护设置。
+
+## Windows 1.3：自动预热
+
+每个账号卡片新增「自动预热」开关和「预热一次…」。默认关闭；开启前逐账号确认。首次检查尝试最小消息，此后至少间隔 5 小时，并参考官方重置时间；最小化后继续检查，关闭窗口或退出后停止。失败、令牌过期或结果不明时暂停。
+
+预热会产生真实用量，使用 GPT-6 Luna / low；5 小时须有余额，7 天须剩余至少 1%。不切换当前账号，不退出 Codex，不触碰 VS Code 登录文件，不传刷新令牌或回写凭据。手动操作不再被未来重置时间挡住，窗口效果以官方为准。
+
+详细行为、暂停恢复和测试边界见 [自动预热说明](docs/auto-warmup.md)。测试全程使用虚构账号；尚未在用户真实 Windows 账号上发送消息。
 
 ## Windows 1.2：Token 消费统计
 
@@ -19,14 +27,14 @@
 
 升级方法：退出旧切换器，将新 ZIP 完整解压到新目录，运行新版 EXE。原有账号库位于 LocalAppData，继续沿用；不复制或删除账号凭据。保留旧文件夹可回退。Mac 包与 Windows 包分别下载。
 
-本次仅新增统计页，现有账号切换行为保持原状，并未在此版本引入桌面/VS Code 登录目录隔离、Mac 自动预热或自动更新功能。
+现有账号切换行为保持原状；1.3 已加入自动预热，但尚未加入桌面/VS Code 登录目录隔离或 Windows 自动更新功能。
 
 ## Windows 1.1：每个账号的剩余额度
 
 - 每张账号卡显示 **5 小时、7 天剩余百分比**、进度条和本地时区的重置时间。剩余比例为 `100 - usedPercent`，限制在 0–100%。
 - 启动后查询；窗口打开且未最小化时，每 5 分钟刷新。支持「刷新全部额度」、单账号「刷新」与「停止」，手动查询间隔至少 30 秒。
 - 使用官方 CLI 的 `account/rateLimits/read`。优先选择 `rateLimitsByLimitId.codex`；按窗口长度 300 / 10080 分钟匹配，绝不把其他模型、未知长度或缺失值标成满额。
-- 查询在独立私有 `CODEX_HOME` 子进程中进行，以 `chatgptAuthTokens` 临时传入所选账号的 access token。不切换桌面账号，不写当前 `auth.json`，不发送刷新令牌，也不调用额度重置或模型生成接口。
+- 查询在独立私有 `CODEX_HOME` 子进程中进行，以 `chatgptAuthTokens` 临时传入所选账号的 access token。不切换桌面账号，不写当前 `auth.json`，不发送刷新令牌。纯额度查询不发模型消息；已开启自动预热的账号在额度检查后可能执行已确认的最小模型请求。
 - 此模式属于实验性协议，需要兼容的官方 CLI。过期 token 会提示更新登录备份或重新添加账号；刷新额度本身不自动续期。当前账号优先读取身份匹配的最新本机 access token。
 - 无数据显示「— / 暂未提供数据」，首次显示「待刷新」。查询失败保留上次结果并标记；超过 5 分钟或跨过重置时间后标记待刷新，不猜测自动恢复到 100%。
 - 额度仅存在内存中。错误提示不显示令牌或服务器原始响应。查询仅连接官方服务，不向第三方发送凭据。
@@ -67,14 +75,14 @@
 
 ## 数据保存在哪里
 
-- 账号列表：`%LOCALAPPDATA%\StillCodexSwitcher\accounts.json`，含备注、邮箱和订阅缓存标签，不含登录令牌。
+- 账号列表：`%LOCALAPPDATA%\StillCodexSwitcher\accounts.json`，含备注、邮箱、订阅缓存标签和预热开关/计划/结果，不含登录令牌。
 - 加密凭据和回滚备份：同目录的 `vault`，使用 **DPAPI 当前 Windows 用户作用域**，不是明文密码文件。
 - 数据目录与新建私密文件设置为仅当前用户和 SYSTEM 可访问。
 - 当前 Codex 登录：`%CODEX_HOME%\auth.json`；未设置 CODEX_HOME 时为 `%USERPROFILE%\.codex\auth.json`。
 - 添加账号在本工具私有目录下使用独立 CODEX_HOME，完成/取消后清理。只结束本工具启动的登录子进程。
 - 切换前保存当前账号最新凭据，先写加密回滚备份，再原子替换登录文件。系统启动请求失败时恢复原文件；若检测到别的程序修改了登录文件，则保留其改动。
 - 只支持 ChatGPT 登录和 `file` 凭据存储模式。遇到显式 `keyring`、`auto`、`ephemeral` 或 API Key 配置时保持现状并提示，不修改 Codex 配置。
-- 不更改聊天记录、项目、订阅和额度。订阅标签来自本机缓存；额度卡显示独立查询结果和刷新时间。
+- 聊天记录、项目和订阅设置保持原样。订阅标签来自本机缓存；额度卡显示查询结果和刷新时间。主动开启预热会消耗实际模型额度。
 - Windows 本机与 WSL 的 Codex 登录分别管理；这个版本不切换 WSL。
 - Mac 钥匙串和 Windows 加密库不直接互通。**在 Windows 上各登录一次**，不要把真实令牌放进源码或发送给别人。
 - 删除保存记录不会让当前 Codex 退出，也不会删除独立的上一份回滚备份。删除 EXE 不会删除账号库。

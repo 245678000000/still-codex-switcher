@@ -42,6 +42,12 @@ public partial class App : Application
                 if (!window.CheckDemoTokens()) throw new Exception("Synthetic Token UI check failed");
                 window.ShowDemoTokens(e.Args.Contains("--tokens-empty"));
             }
+            if (e.Args.Contains("--render-warmup"))
+            {
+                window.ShowDemoWarmup(e.Args.Contains("--warmup-bottom"));
+                if (!window.CheckDemoWarmup()) throw new Exception("Synthetic warmup UI check failed");
+                window.ShowDemoWarmup(e.Args.Contains("--warmup-bottom"));
+            }
             if (render >= 0 && render + 1 < e.Args.Length)
             {
                 await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -53,6 +59,11 @@ public partial class App : Application
                 if (e.Args.Contains("--tokens-bottom"))
                 {
                     window.ShowDemoTokenDetails();
+                    await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                }
+                if (e.Args.Contains("--render-warmup"))
+                {
+                    window.ShowDemoWarmup(e.Args.Contains("--warmup-bottom"));
                     await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 }
                 window.UpdateLayout();

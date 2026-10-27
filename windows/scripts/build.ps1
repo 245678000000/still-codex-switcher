@@ -13,6 +13,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
     Copy-Item README.md (Join-Path $Out 'README.md')
     Copy-Item LICENSE (Join-Path $Out 'LICENSE.txt')
+    Copy-Item docs/auto-warmup.md (Join-Path $Out 'Auto-Warmup.md')
     Copy-Item docs/token-statistics.md (Join-Path $Out 'Token-Statistics.md')
     Copy-Item scripts/self-test.cmd $Out
     Copy-Item scripts/demo.cmd $Out
@@ -23,7 +24,7 @@ try {
     }
     $exe = Join-Path $Out 'StillCodexSwitcher.exe'
     $version = (Get-Item $exe).VersionInfo
-    if ($version.ProductVersion -notlike '1.2.0-preview.1*') { throw 'Unexpected executable version' }
+    if ($version.ProductVersion -notlike '1.3.0-preview.1*') { throw 'Unexpected executable version' }
     @{ fileVersion = $version.FileVersion; productVersion = $version.ProductVersion; sha256 = (Get-FileHash $exe -Algorithm SHA256).Hash } | ConvertTo-Json | Set-Content (Join-Path $Root 'dist/executable-check.json')
     Compress-Archive -Path "$Out/*" -DestinationPath (Join-Path $Root "dist/Codex-Account-Switcher-Windows-$($Runtime.Substring(4)).zip") -Force
     Write-Host "Built: $Out"

@@ -37,7 +37,7 @@ public partial class MainWindow : Window
         if (demo)
         {
             library.Accounts = new[] { ("Personal", "personal@example.com", "plus"), ("工作空间", "work@example.com", "team"), ("日常探索", "explore@example.com", "free") }.Select((v, i) => new Account(Guid.NewGuid(), "demo-" + i, v.Item1, v.Item2, v.Item3, DateTimeOffset.Now, i)).ToList();
-            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.2";
+            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.3";
             StatusText.Text = "界面演示：不读取真实账号，也不切换 Codex。";
             var now = DateTimeOffset.UtcNow;
             quotas[library.Accounts[0].Id] = new(new(new(76, now.AddHours(3)), new(42, now.AddDays(4)), now));
@@ -54,8 +54,8 @@ public partial class MainWindow : Window
         {
             RenderAccounts();
             if (TokensPage.Visibility == Visibility.Visible && IsVisible && WindowState != WindowState.Minimized) await TokensPage.RefreshAsync();
-            if (!demo && IsVisible && WindowState != WindowState.Minimized && !busy && !refreshingQuotas)
-                await RefreshQuotasAsync(onlyDue: true);
+            if (!demo && (IsVisible && WindowState != WindowState.Minimized || HasAutoWarmup) && !busy && !refreshingQuotas)
+                await RefreshQuotasAsync(onlyDue: true, enabledOnly: !IsVisible || WindowState == WindowState.Minimized);
         };
         Closed += (_, _) => { quotaTimer.Stop(); quotaCancel?.Cancel(); TokensPage.Cancel(); };
     }
@@ -113,7 +113,7 @@ public partial class MainWindow : Window
         if (!initialized) return;
         var filtered = library.Accounts.Where(a => (a.Label + a.Email).Contains(SearchBox.Text ?? "", StringComparison.OrdinalIgnoreCase));
         foreach (var id in quotas.Keys.Where(id => !library.Accounts.Any(a => a.Id == id)).ToArray()) quotas.Remove(id);
-        var rows = filtered.Select(a => new AccountRow(a, a.IdentityKey == current?.Key, busy, IsDark(), quotas.GetValueOrDefault(a.Id) ?? new(), refreshingQuotas)).ToList();
+        var rows = filtered.Select(a => new AccountRow(a, a.IdentityKey == current?.Key, busy || !ready, IsDark(), quotas.GetValueOrDefault(a.Id) ?? new(), refreshingQuotas, WarmupStatus(a))).ToList();
         AccountsList.ItemsSource = rows;
         EmptyState.Visibility = library.Accounts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         NoMatches.Visibility = library.Accounts.Count > 0 && rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -269,13 +269,13 @@ public partial class MainWindow : Window
         if (((Button)sender).Tag is Account account) await RefreshQuotasAsync(account.Id);
     }
     void CancelQuotas(object sender, RoutedEventArgs e) => quotaCancel?.Cancel();
-    async Task RefreshQuotasAsync(Guid? selected = null, bool onlyDue = false)
+    async Task RefreshQuotasAsync(Guid? selected = null, bool onlyDue = false, bool manualWarmup = false, bool force = false, bool enabledOnly = false)
     {
         if (busy || refreshingQuotas || !ready) return;
         if (demo) { StatusText.Text = "演示额度为虚构数据；正式运行从官方服务查询。"; return; }
         var now = DateTimeOffset.UtcNow;
-        var targets = library.Accounts.Where(a => selected == null || a.Id == selected).Where(a =>
-            !quotas.TryGetValue(a.Id, out var state) || state.AttemptedAt == null || now - state.AttemptedAt >= TimeSpan.FromSeconds(onlyDue ? 300 : 30)).ToArray();
+        var targets = library.Accounts.Where(a => (selected == null || a.Id == selected) && (!enabledOnly || a.Warmup is { Enabled: true, Paused: false, ScheduleVersion: WarmupPolicy.Version })).Where(a =>
+            force || !quotas.TryGetValue(a.Id, out var state) || state.AttemptedAt == null || now - state.AttemptedAt >= TimeSpan.FromSeconds(onlyDue ? 300 : 30)).ToArray();
         if (targets.Length == 0) { if (!onlyDue) StatusText.Text = "额度刚刚刷新过，请稍后再试。"; return; }
         refreshingQuotas = true; quotaCancel = new();
         QuotaRefreshButton.IsEnabled = false; CancelQuotaButton.Visibility = Visibility.Visible;
@@ -286,7 +286,7 @@ public partial class MainWindow : Window
             var cli = desktop?.FindCli(library.CliPath) ?? library.CliPath;
             foreach (var account in targets)
             {
-                if (cancel.IsCancellationRequested) break;
+                if (cancel.IsCancellationRequested || !ready) break;
                 var old = quotas.GetValueOrDefault(account.Id) ?? new();
                 quotas[account.Id] = old with { Loading = true, AttemptedAt = DateTimeOffset.UtcNow }; RenderAccounts();
                 try
@@ -313,6 +313,7 @@ public partial class MainWindow : Window
                         var snapshot = await Task.Run(() => new QuotaBroker(cli, paths.Root, PrivateAccess.Set).ReadAsync(auth, account.IdentityKey, cancel), cancel);
                         if (library.Accounts.Any(a => a.Id == account.Id && a.IdentityKey == account.IdentityKey))
                             quotas[account.Id] = new(snapshot, AttemptedAt: DateTimeOffset.UtcNow);
+                        await AttemptWarmupAsync(account, snapshot, cli, manualWarmup, cancel);
                     }
                     finally { if (auth != null) CryptographicOperations.ZeroMemory(auth); }
                 }
@@ -320,10 +321,13 @@ public partial class MainWindow : Window
                 {
                     if (library.Accounts.Any(a => a.Id == account.Id && a.IdentityKey == account.IdentityKey))
                         quotas[account.Id] = old with { Error = ex is OperationCanceledException ? "已取消刷新" : ex is UserError ? ex.Message : "查询未完成，请检查网络或登录状态。", Loading = false, AttemptedAt = DateTimeOffset.UtcNow };
+                    var reason = quotas.GetValueOrDefault(account.Id)?.Error ?? "额度查询未完成";
+                    if (manualWarmup) { warmupNotices[account.Id] = reason; StatusText.Text = account.Label + "：" + reason; }
+                    if (ex is not OperationCanceledException) PauseWarmupAfterQueryFailure(account, reason);
                 }
                 RenderAccounts();
             }
-            if (!busy && !onlyDue) StatusText.Text = cancel.IsCancellationRequested ? "已停止额度刷新；上次结果保留。" : "额度刷新结束，各账号状态见卡片。查询没有切换或重启 Codex。";
+            if (!busy && !onlyDue && !manualWarmup && !force) StatusText.Text = cancel.IsCancellationRequested ? "已停止额度刷新；上次结果保留。" : "额度刷新结束，各账号状态见卡片。查询没有切换或重启 Codex。";
         }
         catch (Exception)
         {
@@ -368,14 +372,16 @@ public partial class MainWindow : Window
     }
     void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (refreshingQuotas) { quotaCancel?.Cancel(); e.Cancel = true; StatusText.Text = "正在结束额度查询，完成后可关闭。"; return; }
+        if (refreshingQuotas) { quotaCancel?.Cancel(); e.Cancel = true; StatusText.Text = "正在停止额度查询或预热，清理完成后可关闭。"; return; }
         if (!busy) return; e.Cancel = true;
         if (loginCancel != null) { loginCancel.Cancel(); StatusText.Text = "正在结束登录并清理临时资料，完成后可关闭。"; }
         else StatusText.Text = "当前操作正在完成，请稍后再关闭。";
     }
 }
-public sealed class AccountRow(Account account, bool current, bool busy, bool dark, QuotaState quota, bool refreshing)
+public sealed class AccountRow(Account account, bool current, bool busy, bool dark, QuotaState quota, bool refreshing, string warmupText)
 {
+    public bool WarmupEnabled => account.Warmup is { Enabled: true, ScheduleVersion: WarmupPolicy.Version };
+    public string WarmupText => warmupText;
     public Account Account => account;
     public string Label => account.Label;
     public string Email => account.Email;

@@ -36,6 +36,15 @@ jobs:
             $p = Start-Process $exe -ArgumentList $arguments -Wait -PassThru
             if ($p.ExitCode -ne 0) { throw "Token $case render/UI tests failed" }
           }
+          foreach ($case in @('light','dark','compact','details')) {
+            $arguments = @('--render',"$pwd/dist/warmup-$case.png",'--render-warmup')
+            if ($case -eq 'dark') { $arguments += '--dark' }
+            if ($case -eq 'details') { $arguments += '--warmup-bottom' }
+            if ($case -eq 'compact') { $arguments += '--compact' }
+            $p = Start-Process $exe -ArgumentList $arguments -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "Warmup $case render/UI tests failed" }
+          }
+          'PASS native warmup UI: default OFF, independent toggle, paused/success/next-time states, manual demo sends no request; four renders' | Set-Content dist/warmup-ui-tests.txt
           $normal = Get-Content dist/tokens-light.png.json | ConvertFrom-Json
           $compact = Get-Content dist/tokens-compact.png.json | ConvertFrom-Json
           if ($compact.width -ge $normal.width -or $compact.height -ge $normal.height) { throw 'Compact viewport not reduced' }

@@ -17,6 +17,17 @@
         <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Body" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter TargetName="Body" Property="BorderThickness" Value="2"/></Trigger>
       </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
     </Style>
+    <Style x:Key="WarmupToggle" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FontSize" Value="11"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox"><StackPanel x:Name="ToggleBody" Orientation="Horizontal">
+       <ContentPresenter VerticalAlignment="Center" Margin="0,0,10,0"/>
+       <Border x:Name="Track" Width="34" Height="20" CornerRadius="10" Background="{DynamicResource MutedBrush}" BorderThickness="1" BorderBrush="Transparent"><Ellipse x:Name="Knob" Width="14" Height="14" Fill="White" HorizontalAlignment="Left" Margin="2,0"/></Border>
+      </StackPanel><ControlTemplate.Triggers>
+       <Trigger Property="IsChecked" Value="True"><Setter TargetName="Track" Property="Background" Value="{DynamicResource ButtonBrush}"/><Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/></Trigger>
+       <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ToggleBody" Property="Opacity" Value="0.45"/></Trigger>
+       <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource InkBrush}"/></Trigger>
+      </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="{DynamicResource ButtonBrush}"/><Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
     <Style x:Key="Nav" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Padding" Value="13,13"/><Setter Property="Margin" Value="0,3"/></Style>
     <Style TargetType="TextBox"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/><Setter Property="Padding" Value="10,8"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
