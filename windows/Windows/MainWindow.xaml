@@ -8,9 +8,9 @@
     <StackPanel><TextBlock Text="栖言" FontSize="21" FontWeight="SemiBold"/><TextBlock Text="CODEX ACCOUNT SWITCHER" FontFamily="Consolas" FontSize="8" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0"/></StackPanel>
    </StackPanel>
    <StackPanel Grid.Row="1"><TextBlock Text="你的工作，从容接续" Style="{StaticResource Muted}" Margin="2,0,0,12" FontSize="10"/>
-    <Button x:Name="AccountsNav" Style="{StaticResource Nav}" Background="{DynamicResource WashBrush}" Click="ShowAccounts"><Grid Width="150"><TextBlock Text="账号空间" FontWeight="SemiBold"/><TextBlock x:Name="SidebarCount" Text="0" HorizontalAlignment="Right" Foreground="{DynamicResource MutedBrush}"/></Grid></Button>
-    <Button x:Name="TokensNav" Content="Token 统计" Style="{StaticResource Nav}" Click="ShowTokens"/>
-    <Button x:Name="SettingsNav" Content="偏好与说明" Style="{StaticResource Nav}" Click="ShowSettings"/>
+    <Button x:Name="AccountsNav" Style="{StaticResource Nav}" Background="{DynamicResource WashBrush}" Click="ShowAccounts"><Grid><TextBlock x:Name="AccountsNavLabel" Text="账号空间" FontWeight="SemiBold"/><TextBlock x:Name="SidebarCount" Text="0" HorizontalAlignment="Right" Foreground="{DynamicResource MutedBrush}"/></Grid></Button>
+    <Button x:Name="TokensNav" Style="{StaticResource Nav}" Click="ShowTokens"><TextBlock x:Name="TokensNavLabel" Text="Token 统计"/></Button>
+    <Button x:Name="SettingsNav" Style="{StaticResource Nav}" Click="ShowSettings"><TextBlock x:Name="SettingsNavLabel" Text="偏好与说明"/></Button>
    </StackPanel>
    <StackPanel Grid.Row="3">
     <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="13" Padding="16" Margin="0,0,0,18"><StackPanel>
@@ -18,7 +18,7 @@
      <TextBlock Text="留在本机，随时就位。" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
      <TextBlock Text="Windows 用户级加密。&#10;不保存密码。额度查询仅连接官方服务。" Style="{StaticResource Muted}" FontSize="10.5"/>
     </StackPanel></Border>
-    <TextBlock x:Name="ModeLabel" Text="●  本地账号管理                 1.3" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
+    <TextBlock x:Name="ModeLabel" Text="●  本地账号管理                 1.3.1" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
    </StackPanel>
   </Grid>
  </Border>

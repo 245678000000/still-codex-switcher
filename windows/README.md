@@ -4,12 +4,16 @@
 
 ## 当前交付状态
 
-- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.3.0-preview.1)。
+- 下载：[Codex-Account-Switcher-Windows-x64.zip](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.3.1-preview.1)。
 - Windows x64 自包含 EXE，适用于 Windows 10/11 的 Intel / AMD 64 位电脑；无需单独安装 .NET，无需管理员权限。
 - 已在 Mac 上交叉编译生成真正的 Windows PE32+ GUI 可执行文件；使用 Microsoft .NET 8.0.32 运行库。
 - 核心逻辑与子进程离线用例覆盖 Token、额度、自动预热、防重与取消清理；Windows DPAPI/ACL 原生检查与浅色、深色、小窗口、空状态 WPF 渲染由 GitHub Windows runner 验收，结果见发布页。官方登录回调、真实账号额度查询及重启切换仍待登录后核对。
 - 这是便携预览版，不把模拟账号的构建与自检等同于真实账号全流程验收。测试未读取或更改你的真实 Codex 登录。
 - 没有配置 Authenticode 发布者签名，Windows 可能显示来源提示。本程序不会修改 Defender、SmartScreen、执行策略等系统保护设置。
+
+## Windows 1.3.1：侧栏排版修复
+
+账号空间、Token 统计、偏好与说明统一左对齐，账号数量保持右对齐；浅色、深色和小窗口布局一致。自动预热、Token 统计与账号库行为保持原样。
 
 ## Windows 1.3：自动预热
 

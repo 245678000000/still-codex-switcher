@@ -48,6 +48,7 @@ public partial class App : Application
                 if (!window.CheckDemoWarmup()) throw new Exception("Synthetic warmup UI check failed");
                 window.ShowDemoWarmup(e.Args.Contains("--warmup-bottom"));
             }
+            if (e.Args.Contains("--render-settings")) window.ShowDemoSettings();
             if (render >= 0 && render + 1 < e.Args.Length)
             {
                 await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -67,6 +68,7 @@ public partial class App : Application
                     await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 }
                 window.UpdateLayout();
+                File.WriteAllText(e.Args[render + 1] + ".nav.json", System.Text.Json.JsonSerializer.Serialize(window.CheckDemoNavigationAlignment()));
                 var content = (FrameworkElement)window.Content;
                 var bounds = new Rect(0, 0, content.ActualWidth, content.ActualHeight);
                 if (e.Args.Contains("--render-tokens"))

@@ -24,7 +24,7 @@ try {
     }
     $exe = Join-Path $Out 'StillCodexSwitcher.exe'
     $version = (Get-Item $exe).VersionInfo
-    if ($version.ProductVersion -notlike '1.3.0-preview.1*') { throw 'Unexpected executable version' }
+    if ($version.ProductVersion -notlike '1.3.1-preview.1*') { throw 'Unexpected executable version' }
     @{ fileVersion = $version.FileVersion; productVersion = $version.ProductVersion; sha256 = (Get-FileHash $exe -Algorithm SHA256).Hash } | ConvertTo-Json | Set-Content (Join-Path $Root 'dist/executable-check.json')
     Compress-Archive -Path "$Out/*" -DestinationPath (Join-Path $Root "dist/Codex-Account-Switcher-Windows-$($Runtime.Substring(4)).zip") -Force
     Write-Host "Built: $Out"

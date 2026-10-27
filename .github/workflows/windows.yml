@@ -45,6 +45,15 @@ jobs:
             if ($p.ExitCode -ne 0) { throw "Warmup $case render/UI tests failed" }
           }
           'PASS native warmup UI: default OFF, independent toggle, paused/success/next-time states, manual demo sends no request; four renders' | Set-Content dist/warmup-ui-tests.txt
+          $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/settings-light.png",'--render-settings' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Settings/sidebar alignment render failed' }
+          $navReports = @(Get-ChildItem dist/*.nav.json)
+          if ($navReports.Count -ne 13) { throw 'Missing navigation geometry reports' }
+          foreach ($report in $navReports) {
+            $geometry = Get-Content $report.FullName | ConvertFrom-Json
+            if (-not $geometry.passed) { throw 'Sidebar geometry check failed' }
+          }
+          'PASS sidebar geometry: three labels share left edge, account count stays right; 13 renders across selected pages, light/dark and compact views' | Set-Content dist/sidebar-ui-tests.txt
           $normal = Get-Content dist/tokens-light.png.json | ConvertFrom-Json
           $compact = Get-Content dist/tokens-compact.png.json | ConvertFrom-Json
           if ($compact.width -ge $normal.width -or $compact.height -ge $normal.height) { throw 'Compact viewport not reduced' }

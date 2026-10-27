@@ -37,7 +37,7 @@ public partial class MainWindow : Window
         if (demo)
         {
             library.Accounts = new[] { ("Personal", "personal@example.com", "plus"), ("工作空间", "work@example.com", "team"), ("日常探索", "explore@example.com", "free") }.Select((v, i) => new Account(Guid.NewGuid(), "demo-" + i, v.Item1, v.Item2, v.Item3, DateTimeOffset.Now, i)).ToList();
-            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.3";
+            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.3.1";
             StatusText.Text = "界面演示：不读取真实账号，也不切换 Codex。";
             var now = DateTimeOffset.UtcNow;
             quotas[library.Accounts[0].Id] = new(new(new(76, now.AddHours(3)), new(42, now.AddDays(4)), now));
@@ -237,6 +237,22 @@ public partial class MainWindow : Window
     {
         if (!demo) return;
         TokensPage.SeedDemo(empty); ShowTokens(this, new RoutedEventArgs());
+    }
+    public void ShowDemoSettings() { if (demo) ShowSettings(this, new RoutedEventArgs()); }
+    public object CheckDemoNavigationAlignment()
+    {
+        if (!demo) throw new InvalidOperationException("Navigation fixture requires demo mode.");
+        UpdateLayout();
+        FrameworkElement[] labels = [AccountsNavLabel, TokensNavLabel, SettingsNavLabel];
+        var lefts = labels.Select(label => label.TranslatePoint(new Point(), this).X).ToArray();
+        var expectedLeft = AccountsNav.TranslatePoint(new Point(AccountsNav.Padding.Left, 0), this).X;
+        var countRight = SidebarCount.TranslatePoint(new Point(SidebarCount.ActualWidth, 0), this).X;
+        var expectedRight = AccountsNav.TranslatePoint(new Point(AccountsNav.ActualWidth - AccountsNav.Padding.Right, 0), this).X;
+        if (labels.Any(label => label.ActualWidth <= 0) || lefts.Any(left => Math.Abs(left - expectedLeft) > 0.5) || Math.Abs(countRight - expectedRight) > 0.5)
+            throw new InvalidOperationException("Sidebar labels or count are not aligned.");
+        if (new[] { AccountsNav, TokensNav, SettingsNav }.Any(button => button.ActualWidth != AccountsNav.ActualWidth))
+            throw new InvalidOperationException("Sidebar button widths differ.");
+        return new { lefts, expectedLeft, countRight, expectedRight, toleranceDip = 0.5, passed = true };
     }
     public void ShowDemoTokenDetails() { if (demo) MainScroll.ScrollToBottom(); }
     public double DemoScrollOffset => demo ? MainScroll.VerticalOffset : 0;

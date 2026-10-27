@@ -10,7 +10,7 @@
 
 已安装 1.2.0 或 1.3.0 的用户可开启「接收预览版本」，再点击「检查更新」下载新版。检查器不自动替换应用或退出 Codex。[更新功能说明](docs/macos-updates.md) · [额度说明](docs/macos-quota.md)
 
-Windows 10/11 x64 的 [1.3 自动预热预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.3.0-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、自动/手动预热和本机 Token 统计**。预热默认关闭，开启后会产生实际用量；最小化继续，退出后停止。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
+Windows 10/11 x64 的 [1.3 自动预热预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.3.1-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、自动/手动预热和本机 Token 统计**。预热默认关闭，开启后会产生实际用量；最小化继续，退出后停止。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
 
 | 浅色 | 深色 |
 |---|---|
