@@ -34,6 +34,7 @@ public partial class App : Application
             var render = Array.IndexOf(e.Args, "--render");
             var window = new MainWindow(e.Args.Contains("--demo") || render >= 0); MainWindow = window;
             if (e.Args.Contains("--dark")) window.SetDemoTheme("dark");
+            if (e.Args.Contains("--compact")) { window.Width = 940; window.Height = 680; }
             window.Show();
             if (e.Args.Contains("--render-tokens"))
             {
@@ -49,18 +50,20 @@ public partial class App : Application
                     window.ShowDemoQuotaList();
                     await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 }
+                if (e.Args.Contains("--tokens-bottom"))
+                {
+                    window.ShowDemoTokenDetails();
+                    await window.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                }
                 window.UpdateLayout();
                 var content = (FrameworkElement)window.Content;
+                var bounds = new Rect(0, 0, content.ActualWidth, content.ActualHeight);
                 if (e.Args.Contains("--render-tokens"))
                 {
-                    var size = e.Args.Contains("--compact") ? new Size(940, 680) : new Size(1100, 1430);
-                    // Detach from the desktop-sized HWND before measuring. Otherwise WPF's
-                    // layout pass clamps the fixture to the runner screen and hides lower cards.
-                    window.Content = null;
-                    content.Width = size.Width; content.Height = size.Height;
-                    content.Measure(size); content.Arrange(new Rect(size)); content.UpdateLayout();
+                    var report = new { width = bounds.Width, height = bounds.Height, compact = e.Args.Contains("--compact"), bottom = e.Args.Contains("--tokens-bottom"), offset = window.DemoScrollOffset };
+                    if (report.bottom && report.offset <= 0) throw new Exception("Token details did not scroll into view");
+                    File.WriteAllText(e.Args[render + 1] + ".json", System.Text.Json.JsonSerializer.Serialize(report));
                 }
-                var bounds = new Rect(0, 0, content.ActualWidth, content.ActualHeight);
                 var visual = new System.Windows.Media.DrawingVisual();
                 using (var drawing = visual.RenderOpen())
                 {

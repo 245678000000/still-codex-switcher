@@ -238,6 +238,8 @@ public partial class MainWindow : Window
         if (!demo) return;
         TokensPage.SeedDemo(empty); ShowTokens(this, new RoutedEventArgs());
     }
+    public void ShowDemoTokenDetails() { if (demo) MainScroll.ScrollToBottom(); }
+    public double DemoScrollOffset => demo ? MainScroll.VerticalOffset : 0;
     public bool CheckDemoTokens() => demo && TokensPage.CheckDemoUI();
     public void ShowDemoQuotaList() { if (demo) MainScroll.ScrollToBottom(); }
     public void SetDemoTheme(string theme) { if (demo) { library.Theme = theme; ApplyTheme(); Render(); } }
