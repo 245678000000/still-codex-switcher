@@ -28,6 +28,57 @@ import SwiftUI
     func warmupEnabled(_ account: SavedAccount) -> Bool { account.warmup?.enabled == true && account.warmup?.scheduleVersion == 2 }
     var hasAutoWarmup: Bool { library.accounts.contains { warmupEnabled($0) && $0.warmup?.paused != true } }
 
+    @Published var diagnostics: [UUID: DiagnosticReport] = [:]
+    @Published private(set) var diagnosingAccountID: UUID?
+    private var diagnosticTask: Task<Void, Never>?
+    func cancelDiagnostics() { diagnosticTask?.cancel() }
+    func waitForDiagnostics() async { await diagnosticTask?.value }
+    func diagnose(_ account: SavedAccount) {
+        guard !busy, !refreshingQuotas, libraryReady else { return }
+        if demo { seedDiagnostics(); message = "演示诊断 · 没有读取凭据或发送请求"; return }
+        if let report = diagnostics[account.id], Date().timeIntervalSince(report.checkedAt) < 30 {
+            message = "检查刚刚完成，请等待 30 秒后重试。"; return
+        }
+        guard confirm(title: "检查「\(account.label)」？", detail: "读取这个账号的本地凭据，并通过独立官方 CLI 查询额度和模型目录。不发送聊天消息，不触发自动预热，不切换或退出 Codex，也不刷新登录凭证。\n\n结果仅在本次栖言运行期间保留。模型目录可能来自缓存，不代表实际推理验证。", button: "开始基础检查") else { return }
+        do { try begin("正在检查「\(account.label)」…") } catch { show(error); return }
+        diagnosingAccountID = account.id
+        diagnosticTask = Task {
+            defer { self.diagnosingAccountID = nil; self.diagnosticTask = nil; self.end() }
+            let report: DiagnosticReport
+            do {
+                guard self.library.accounts.contains(where: { $0.id == account.id && $0.identityKey == account.identityKey }) else { throw SwitchError("账号记录已变化，请刷新列表后重试。") }
+                guard let cli = CodexDesktop.find()?.cli else { throw SwitchError("未找到官方 CLI，请先安装并打开一次 Codex。") }
+                try SecureFile.checkFileMode(self.paths.config)
+                let live = try SecureFile.read(self.paths.auth)
+                let auth: Data
+                if let live, (try? Identity.read(live).key) == account.identityKey { auth = live }
+                else { guard let saved = try self.vault.get(account.id.uuidString) else { throw SwitchError("登录备份缺失，请重新添加账号。") }; auth = saved }
+                _ = try QuotaCredentials.read(auth, expectedKey: account.identityKey)
+                report = try await QuotaBroker.diagnose(cli: cli, root: self.paths.root, auth: auth, expectedKey: account.identityKey)
+                try Task.checkCancellation()
+            } catch {
+                let reason = error is CancellationError ? "已取消 · 本次未发送聊天消息" : (error as? SwitchError)?.message ?? "检查未完成，请检查官方 CLI、登录备份或网络；本次没有自动重试"
+                self.diagnostics[account.id] = .interrupted(reason)
+                self.message = "\(account.label)：\(reason)"; return
+            }
+            self.diagnostics[account.id] = report
+            self.message = "\(account.label)：\(report.summary)。当前 Codex 登录保持原样。"
+        }
+    }
+    func seedDiagnostics(empty: Bool = false) {
+        guard demo else { return }
+        diagnostics = [:]
+        if empty { return }
+        let now = Date()
+        for (i, account) in library.accounts.enumerated() {
+            let q = QuotaSnapshot(fiveHours: QuotaWindow(remaining: i == 1 ? 0 : 76, resetsAt: now.addingTimeInterval(3600)), sevenDays: i == 2 ? nil : QuotaWindow(remaining: 42, resetsAt: now.addingTimeInterval(86400)), fetchedAt: now)
+            diagnostics[account.id] = DiagnosticReport(checkedAt: now, checks: [
+                DiagnosticCheck(id: "credentials", title: "账号凭据", level: .passed, detail: "本地资料与所选账号匹配；未刷新或回写凭证"),
+                DiagnosticCheck(id: "service", title: "官方额度接口", level: .passed, detail: "本次额度读取成功；不代表所有模型请求均可用")
+            ] + DiagnosticReport.fromQuota(q).checks + [DiagnosticCheck(id: "models", title: "模型目录", level: .passed, detail: "读取到 2 个模型标识 · 可能来自 CLI 缓存，尚未验证实际推理")], quota: q, models: ["example-model-a", "example-model-b"])
+        }
+    }
+
     private var operation: OperationLock?
     private var observer: NSObjectProtocol?
     var accounts: [SavedAccount] {
@@ -187,7 +238,7 @@ import SwiftUI
             let previous = try vault.get(account.id.uuidString)
             try vault.remove(account.id.uuidString)
             var next = library; next.accounts.removeAll { $0.id == account.id }
-            do { try SecureFile.saveLibrary(next, to: paths.metadata); library = next; quotas.removeValue(forKey: account.id) }
+            do { try SecureFile.saveLibrary(next, to: paths.metadata); library = next; quotas.removeValue(forKey: account.id); diagnostics.removeValue(forKey: account.id) }
             catch { if let previous { try? vault.put(previous, for: account.id.uuidString) }; throw error }
             message = "保存记录已移除，Codex 当前登录保持原样。"
         } catch { show(error) }

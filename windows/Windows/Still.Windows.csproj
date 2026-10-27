@@ -10,5 +10,5 @@
     <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed><DebugType>none</DebugType><DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../Core/Still.Core.csproj" /><Compile Include="../Tests/TestSuite.cs" Link="TestSuite.cs" /><Compile Include="../Tests/QuotaTests.cs" Link="QuotaTests.cs" /><Compile Include="../Tests/TokenUsageTests.cs" Link="TokenUsageTests.cs" /><Compile Include="../Tests/WarmupTests.cs" Link="WarmupTests.cs" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../Core/Still.Core.csproj" /><Compile Include="../Tests/TestSuite.cs" Link="TestSuite.cs" /><Compile Include="../Tests/DiagnosticsTests.cs" Link="DiagnosticsTests.cs" /><Compile Include="../Tests/QuotaTests.cs" Link="QuotaTests.cs" /><Compile Include="../Tests/TokenUsageTests.cs" Link="TokenUsageTests.cs" /><Compile Include="../Tests/WarmupTests.cs" Link="WarmupTests.cs" /></ItemGroup>
 </Project>

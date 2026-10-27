@@ -54,15 +54,26 @@ enum QuotaBroker {
             }.value
         }, onCancel: { stop.cancel() })
     }
-    private enum Reply { case quota(QuotaSnapshot), warmup(WarmupResult) }
+    static func diagnose(cli: URL, root: URL, auth: Data, expectedKey: String, timeout: TimeInterval = 45) async throws -> DiagnosticReport {
+        let credentials = try QuotaCredentials.read(auth, expectedKey: expectedKey)
+        let stop = QuotaStop()
+        return try await withTaskCancellationHandler(operation: {
+            try Task.checkCancellation()
+            return try await Task.detached(priority: .utility) {
+                guard case .diagnostic(let report) = try exchange(cli: cli, root: root, credentials: credentials, stop: stop, timeout: timeout, diagnostic: true) else { throw SwitchError("诊断结果格式异常。") }
+                return report
+            }.value
+        }, onCancel: { stop.cancel() })
+    }
+    private enum Reply { case quota(QuotaSnapshot), warmup(WarmupResult), diagnostic(DiagnosticReport) }
     private static func query(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval) throws -> QuotaSnapshot {
         guard case .quota(let value) = try exchange(cli: cli, root: root, credentials: credentials, stop: stop, timeout: timeout) else { throw SwitchError("额度返回类型异常。") }
         return value
     }
-    private static func exchange(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval, reset: Date? = nil) throws -> Reply {
+    private static func exchange(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval, reset: Date? = nil, diagnostic: Bool = false) throws -> Reply {
         try stop.check()
         let canonical = canonicalSystemURL(root)
-        let parent = canonical.appendingPathComponent(reset == nil ? "quota-queries" : "warmup-requests")
+        let parent = canonical.appendingPathComponent(diagnostic ? "diagnostic-queries" : reset == nil ? "quota-queries" : "warmup-requests")
         try privateDirectory(parent)
         let dir = parent.appendingPathComponent(UUID().uuidString); try privateDirectory(dir)
         let p = Process(); let stdin = Pipe(); let stdout = Pipe()
@@ -85,7 +96,7 @@ enum QuotaBroker {
         var env = ProcessInfo.processInfo.environment
         for key in ["OPENAI_API_KEY", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "OPENAI_BASE_URL", "CODEX_THREAD_ID", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "RUST_LOG"] { env.removeValue(forKey: key) }
         env["CODEX_HOME"] = dir.path
-        if reset != nil {
+        if reset != nil || diagnostic {
             // Strict allowlist: no live HOME/config, refresh tokens, API keys, endpoint overrides or shared databases.
             let temporary = dir.appendingPathComponent("tmp"); try privateDirectory(temporary)
             env = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": dir.path, "CODEX_HOME": dir.path,
@@ -122,7 +133,8 @@ enum QuotaBroker {
         }
         var state = QuotaProtocol(credentials: credentials)
         var warm = reset.map { WarmupProtocol(credentials: credentials, directory: dir.path, reset: $0) }
-        try send(reset == nil ? QuotaProtocol.initialize : WarmupProtocol.initialize)
+        var diagnosticState = DiagnosticProtocol(credentials: credentials)
+        try send(diagnostic ? DiagnosticProtocol.initialize : reset == nil ? QuotaProtocol.initialize : WarmupProtocol.initialize)
         var buffer = Data(); var chunk = [UInt8](repeating: 0, count: 8192)
         while true {
             try check()
@@ -138,6 +150,14 @@ enum QuotaBroker {
             while let end = buffer.firstIndex(of: 0x0a) {
                 let line = Data(buffer[..<end]); buffer.removeSubrange(...end)
                 guard let obj = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { throw SwitchError("额度响应格式异常。") }
+                if diagnostic {
+                    switch try diagnosticState.receive(obj) {
+                    case .ignore: break
+                    case .send(let messages): for message in messages { try send(message) }
+                    case .result(let report): return .diagnostic(report)
+                    }
+                    continue
+                }
                 if warm != nil {
                     switch try warm!.receive(obj) {
                     case .ignore: break

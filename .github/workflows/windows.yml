@@ -19,7 +19,7 @@ jobs:
         shell: pwsh
         run: ./scripts/build.ps1
       - name: Render demo screenshots
-        timeout-minutes: 2
+        timeout-minutes: 4
         shell: pwsh
         run: |
           $exe = (Resolve-Path dist/win-x64/StillCodexSwitcher.exe).Path
@@ -47,13 +47,23 @@ jobs:
           'PASS native warmup UI: default OFF, independent toggle, paused/success/next-time states, manual demo sends no request; four renders' | Set-Content dist/warmup-ui-tests.txt
           $p = Start-Process $exe -ArgumentList '--render',"$pwd/dist/settings-light.png",'--render-settings' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw 'Settings/sidebar alignment render failed' }
+          foreach ($case in @('light','dark','compact','empty','details')) {
+            $arguments = @('--render',"$pwd/dist/diagnostics-$case.png",'--render-diagnostics')
+            if ($case -eq 'dark') { $arguments += '--dark' }
+            if ($case -eq 'compact') { $arguments += '--compact' }
+            if ($case -eq 'empty') { $arguments += '--diagnostics-empty' }
+            if ($case -eq 'details') { $arguments += '--diagnostics-bottom' }
+            $p = Start-Process $exe -ArgumentList $arguments -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "Diagnostics $case render/UI tests failed" }
+          }
+          'PASS native diagnostics UI: result, exhausted and unknown states; no live account or inference request; five renders' | Set-Content dist/diagnostics-ui-tests.txt
           $navReports = @(Get-ChildItem dist/*.nav.json)
-          if ($navReports.Count -ne 13) { throw 'Missing navigation geometry reports' }
+          if ($navReports.Count -ne 18) { throw 'Missing navigation geometry reports' }
           foreach ($report in $navReports) {
             $geometry = Get-Content $report.FullName | ConvertFrom-Json
             if (-not $geometry.passed) { throw 'Sidebar geometry check failed' }
           }
-          'PASS sidebar geometry: three labels share left edge, account count stays right; 13 renders across selected pages, light/dark and compact views' | Set-Content dist/sidebar-ui-tests.txt
+          'PASS sidebar geometry: four labels share left edge, account count stays right; 18 renders across selected pages, light/dark and compact views' | Set-Content dist/sidebar-ui-tests.txt
           $normal = Get-Content dist/tokens-light.png.json | ConvertFrom-Json
           $compact = Get-Content dist/tokens-compact.png.json | ConvertFrom-Json
           if ($compact.width -ge $normal.width -or $compact.height -ge $normal.height) { throw 'Compact viewport not reduced' }

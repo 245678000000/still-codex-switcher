@@ -13,6 +13,7 @@ struct RootView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         if model.page == "accounts" { accountsPage }
+                        else if model.page == "diagnostics" { DiagnosticsPage(model: model) }
                         else if model.page == "tokens" { TokenUsagePage(controller: model.tokenUsage, home: model.paths.codexHome, demo: model.demo) }
                         else { settingsPage }
                     }.padding(.horizontal, 34).padding(.top, 22).padding(.bottom, 26).frame(maxWidth: 1040)
@@ -42,6 +43,7 @@ struct RootView: View {
             Caption(text: "你的工作，从容接续").padding(.bottom, 14)
             nav("accounts", "square.stack.3d.up", "账号空间", count: model.library.accounts.count)
             nav("tokens", "chart.bar.xaxis", "Token 统计")
+            nav("diagnostics", "stethoscope", "账号诊断")
             nav("settings", "slider.horizontal.3", "偏好与说明")
             Spacer()
             VStack(alignment: .leading, spacing: 10) {
@@ -74,7 +76,7 @@ struct RootView: View {
         HStack(spacing: 9) {
             Text("工作台").foregroundStyle(Palette.muted)
             Text("/").foregroundStyle(Palette.line)
-            Text(model.page == "accounts" ? "账号空间" : model.page == "tokens" ? "Token 统计" : "偏好与说明")
+            Text(model.page == "accounts" ? "账号空间" : model.page == "tokens" ? "Token 统计" : model.page == "diagnostics" ? "账号诊断" : "偏好与说明")
             Spacer()
             UpdateIndicator(updater: model.updater) { model.page = "settings" }
             if model.demo { Text("演示数据").font(.system(size: 10, weight: .medium)).foregroundStyle(Palette.accent).padding(.horizontal, 9).padding(.vertical, 5).background(Palette.accentWash, in: Capsule()) }

@@ -56,6 +56,7 @@ import SwiftUI
             model.library.accounts[0].warmup = WarmupRecord(enabled: true, result: "等待首次预热 · 不切换账号", scheduleVersion: 2)
             model.library.accounts[1].warmup = WarmupRecord(enabled: true, paused: true, result: "访问令牌过期 · 请更新登录备份", scheduleVersion: 2)
         }
+        if demo && args.contains("--diagnostics") { model.page = "diagnostics"; model.seedDiagnostics(empty: args.contains("--diagnostics-empty")) }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
         if args.contains("--tokens") { model.page = "tokens"; if demo { model.tokenUsage.seedDemo() } }
@@ -153,6 +154,11 @@ import SwiftUI
         alert.runModal()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if model?.diagnosingAccountID != nil {
+            model.cancelDiagnostics()
+            Task { await self.model.waitForDiagnostics(); NSApp.reply(toApplicationShouldTerminate: true) }
+            return .terminateLater
+        }
         if model?.busy == true && model?.loginWaiting == false && model?.warmingAccountID == nil { NSSound.beep(); showWindow(); return .terminateCancel }
         model?.tokenUsage.cancel(); model?.broker.cancel(); model?.cancelQuotaRefresh(); model?.updater.cancel()
         if model?.broker.cleaning == true || model?.refreshingQuotas == true {
@@ -168,7 +174,7 @@ import SwiftUI
         }
         return .terminateNow
     }
-    func windowWillClose(_ notification: Notification) { if model?.hasAutoWarmup != true && model?.warmingAccountID == nil { model?.cancelQuotaRefresh() } }
+    func windowWillClose(_ notification: Notification) { model?.cancelDiagnostics(); if model?.hasAutoWarmup != true && model?.warmingAccountID == nil { model?.cancelQuotaRefresh() } }
     func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate(); updateTimer?.invalidate(); model?.updater.cancel() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showWindow(); return true }

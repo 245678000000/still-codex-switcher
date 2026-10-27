@@ -53,6 +53,7 @@ public partial class MainWindow : Window
         quotaTimer.Tick += async (_, _) =>
         {
             RenderAccounts();
+            if (DiagnosticsPage.Visibility == Visibility.Visible && !busy) RenderDiagnostics();
             if (TokensPage.Visibility == Visibility.Visible && IsVisible && WindowState != WindowState.Minimized) await TokensPage.RefreshAsync();
             if (!demo && (IsVisible && WindowState != WindowState.Minimized || HasAutoWarmup) && !busy && !refreshingQuotas)
                 await RefreshQuotasAsync(onlyDue: true, enabledOnly: !IsVisible || WindowState == WindowState.Minimized);
@@ -79,7 +80,7 @@ public partial class MainWindow : Window
         busy = value; SaveButton.IsEnabled = !value && ready; AddButton.IsEnabled = !value && ready;
         QuotaRefreshButton.IsEnabled = !value && !refreshingQuotas && ready;
         CancelLoginButton.Visibility = loginCancel != null ? Visibility.Visible : Visibility.Collapsed;
-        RenderAccounts();
+        RenderAccounts(); RenderDiagnostics();
     }
     async Task RefreshAsync()
     {
@@ -97,6 +98,7 @@ public partial class MainWindow : Window
     void Render()
     {
         if (!initialized) return;
+        RenderDiagnostics();
         SidebarCount.Text = library.Accounts.Count.ToString();
         var active = library.Accounts.FirstOrDefault(a => a.IdentityKey == current?.Key);
         CurrentName.Text = active?.Label ?? (current == null ? "先让一个账号就位" : "当前 Codex 账号");
@@ -121,12 +123,14 @@ public partial class MainWindow : Window
     void SearchChanged(object sender, TextChangedEventArgs e) => RenderAccounts();
     void ShowAccounts(object sender, RoutedEventArgs e)
     {
+        HideDiagnostics();
         TokensPage.Visibility = Visibility.Collapsed; TokensNav.Background = Brushes.Transparent;
         AccountsPage.Visibility = Visibility.Visible; SettingsPage.Visibility = Visibility.Collapsed;
         AccountsNav.SetResourceReference(BackgroundProperty, "WashBrush"); SettingsNav.Background = Brushes.Transparent; Breadcrumb.Text = "工作台   /   账号空间";
     }
     void ShowSettings(object sender, RoutedEventArgs e)
     {
+        HideDiagnostics();
         TokensPage.Visibility = Visibility.Collapsed; TokensNav.Background = Brushes.Transparent;
         AccountsPage.Visibility = Visibility.Collapsed; SettingsPage.Visibility = Visibility.Visible;
         SettingsNav.SetResourceReference(BackgroundProperty, "WashBrush"); AccountsNav.Background = Brushes.Transparent; Breadcrumb.Text = "工作台   /   偏好与说明";
@@ -228,6 +232,7 @@ public partial class MainWindow : Window
     }
     async void ShowTokens(object sender, RoutedEventArgs e)
     {
+        HideDiagnostics();
         AccountsPage.Visibility = Visibility.Collapsed; SettingsPage.Visibility = Visibility.Collapsed; TokensPage.Visibility = Visibility.Visible;
         AccountsNav.Background = Brushes.Transparent; SettingsNav.Background = Brushes.Transparent;
         TokensNav.SetResourceReference(BackgroundProperty, "WashBrush"); Breadcrumb.Text = "工作台   /   Token 统计"; MainScroll.ScrollToTop();
@@ -243,14 +248,14 @@ public partial class MainWindow : Window
     {
         if (!demo) throw new InvalidOperationException("Navigation fixture requires demo mode.");
         UpdateLayout();
-        FrameworkElement[] labels = [AccountsNavLabel, TokensNavLabel, SettingsNavLabel];
+        FrameworkElement[] labels = [AccountsNavLabel, TokensNavLabel, DiagnosticsNavLabel, SettingsNavLabel];
         var lefts = labels.Select(label => label.TranslatePoint(new Point(), this).X).ToArray();
         var expectedLeft = AccountsNav.TranslatePoint(new Point(AccountsNav.Padding.Left, 0), this).X;
         var countRight = SidebarCount.TranslatePoint(new Point(SidebarCount.ActualWidth, 0), this).X;
         var expectedRight = AccountsNav.TranslatePoint(new Point(AccountsNav.ActualWidth - AccountsNav.Padding.Right, 0), this).X;
         if (labels.Any(label => label.ActualWidth <= 0) || lefts.Any(left => Math.Abs(left - expectedLeft) > 0.5) || Math.Abs(countRight - expectedRight) > 0.5)
             throw new InvalidOperationException("Sidebar labels or count are not aligned.");
-        if (new[] { AccountsNav, TokensNav, SettingsNav }.Any(button => button.ActualWidth != AccountsNav.ActualWidth))
+        if (new[] { AccountsNav, TokensNav, DiagnosticsNav, SettingsNav }.Any(button => button.ActualWidth != AccountsNav.ActualWidth))
             throw new InvalidOperationException("Sidebar button widths differ.");
         return new { lefts, expectedLeft, countRight, expectedRight, toleranceDip = 0.5, passed = true };
     }
@@ -293,7 +298,7 @@ public partial class MainWindow : Window
         var targets = library.Accounts.Where(a => (selected == null || a.Id == selected) && (!enabledOnly || a.Warmup is { Enabled: true, Paused: false, ScheduleVersion: WarmupPolicy.Version })).Where(a =>
             force || !quotas.TryGetValue(a.Id, out var state) || state.AttemptedAt == null || now - state.AttemptedAt >= TimeSpan.FromSeconds(onlyDue ? 300 : 30)).ToArray();
         if (targets.Length == 0) { if (!onlyDue) StatusText.Text = "额度刚刚刷新过，请稍后再试。"; return; }
-        refreshingQuotas = true; quotaCancel = new();
+        refreshingQuotas = true; quotaCancel = new(); RenderDiagnostics();
         QuotaRefreshButton.IsEnabled = false; CancelQuotaButton.Visibility = Visibility.Visible;
         var cancel = quotaCancel.Token;
         try
@@ -352,7 +357,7 @@ public partial class MainWindow : Window
         finally
         {
             refreshingQuotas = false; quotaCancel?.Dispose(); quotaCancel = null;
-            QuotaRefreshButton.IsEnabled = !busy && ready; CancelQuotaButton.Visibility = Visibility.Collapsed; RenderAccounts();
+            QuotaRefreshButton.IsEnabled = !busy && ready; CancelQuotaButton.Visibility = Visibility.Collapsed; RenderAccounts(); RenderDiagnostics();
         }
     }
     async void ChooseDesktop(object sender, RoutedEventArgs e)
@@ -388,6 +393,7 @@ public partial class MainWindow : Window
     }
     void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (diagnosticCancel != null) { diagnosticCancel.Cancel(); e.Cancel = true; StatusText.Text = "正在停止诊断并清理临时组件，完成后可关闭。"; return; }
         if (refreshingQuotas) { quotaCancel?.Cancel(); e.Cancel = true; StatusText.Text = "正在停止额度查询或预热，清理完成后可关闭。"; return; }
         if (!busy) return; e.Cancel = true;
         if (loginCancel != null) { loginCancel.Cancel(); StatusText.Text = "正在结束登录并清理临时资料，完成后可关闭。"; }

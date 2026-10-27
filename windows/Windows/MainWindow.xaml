@@ -10,6 +10,7 @@
    <StackPanel Grid.Row="1"><TextBlock Text="你的工作，从容接续" Style="{StaticResource Muted}" Margin="2,0,0,12" FontSize="10"/>
     <Button x:Name="AccountsNav" Style="{StaticResource Nav}" Background="{DynamicResource WashBrush}" Click="ShowAccounts"><Grid><TextBlock x:Name="AccountsNavLabel" Text="账号空间" FontWeight="SemiBold"/><TextBlock x:Name="SidebarCount" Text="0" HorizontalAlignment="Right" Foreground="{DynamicResource MutedBrush}"/></Grid></Button>
     <Button x:Name="TokensNav" Style="{StaticResource Nav}" Click="ShowTokens"><TextBlock x:Name="TokensNavLabel" Text="Token 统计"/></Button>
+    <Button x:Name="DiagnosticsNav" Style="{StaticResource Nav}" Click="ShowDiagnostics"><TextBlock x:Name="DiagnosticsNavLabel" Text="账号诊断"/></Button>
     <Button x:Name="SettingsNav" Style="{StaticResource Nav}" Click="ShowSettings"><TextBlock x:Name="SettingsNavLabel" Text="偏好与说明"/></Button>
    </StackPanel>
    <StackPanel Grid.Row="3">
@@ -68,6 +69,7 @@
      </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
      <TextBlock Text="ⓘ  切换会重新打开 Codex。请先保存任务，并结束其他共享登录的 Codex CLI 会话。" Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,0"/>
     </StackPanel>
+    <StackPanel x:Name="DiagnosticsPage" Visibility="Collapsed"/>
     <local:TokenStatsView x:Name="TokensPage" Visibility="Collapsed"/>
     <StackPanel x:Name="SettingsPage" Visibility="Collapsed">
      <TextBlock Text="MAKE YOURSELF AT HOME." FontFamily="Consolas" FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,10"/>
