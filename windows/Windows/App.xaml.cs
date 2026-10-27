@@ -54,6 +54,10 @@ public partial class App : Application
                 if (e.Args.Contains("--render-tokens"))
                 {
                     var size = e.Args.Contains("--compact") ? new Size(940, 680) : new Size(1100, 1430);
+                    // Detach from the desktop-sized HWND before measuring. Otherwise WPF's
+                    // layout pass clamps the fixture to the runner screen and hides lower cards.
+                    window.Content = null;
+                    content.Width = size.Width; content.Height = size.Height;
                     content.Measure(size); content.Arrange(new Rect(size)); content.UpdateLayout();
                 }
                 var bounds = new Rect(0, 0, content.ActualWidth, content.ActualHeight);
