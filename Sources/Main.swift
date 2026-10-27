@@ -12,6 +12,31 @@ import SwiftUI
         if args.contains("--self-test") {
             Task { let success = await SelfTests.run(); exit(success ? 0 : 1) }; return
         }
+        // Isolated read-only diagnostic: intentionally before constructing any account/updater model.
+        if args.contains("--token-scan-test") {
+            Task {
+                do {
+                    let home: URL
+                    if let index = args.firstIndex(of: "--token-scan-test"), args.count > index + 1 {
+                        home = URL(fileURLWithPath: args[index + 1])
+                    } else { home = AppPaths.live().codexHome }
+                    let start = Date()
+                    let scanner = TokenLogScanner()
+                    let snapshot = try await scanner.scan(home: home)
+                    let summary = snapshot.summarize(.all)
+                    let secondStart = Date()
+                    let repeatScan = try await scanner.scan(home: home)
+                    let report: [String: Any] = ["scanned_files": snapshot.scannedFiles, "desktop_sessions": snapshot.sessions.count,
+                        "excluded_files": snapshot.excludedFiles, "warnings": snapshot.warnings,
+                        "input_tokens": summary.total.input, "cached_input_tokens": summary.total.cached,
+                        "output_tokens": summary.total.output, "reasoning_output_tokens": summary.total.reasoning,
+                        "total_tokens": summary.total.total, "initial_seconds": secondStart.timeIntervalSince(start),
+                        "cached_seconds": Date().timeIntervalSince(secondStart), "repeat_total_tokens": repeatScan.summarize(.all).total.total]
+                    let data = try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys])
+                    print(String(decoding: data, as: UTF8.self)); exit(0)
+                } catch { print("Token scan failed; no account services started"); exit(1) }
+            }; return
+        }
         if args.contains("--update-check-test") {
             Task {
                 do {
@@ -33,6 +58,8 @@ import SwiftUI
         }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
+        if args.contains("--tokens") { model.page = "tokens"; if demo { model.tokenUsage.seedDemo() } }
+        if demo && args.contains("--tokens-empty") { model.page = "tokens"; model.tokenUsage.snapshot = TokenSnapshot() }
         if demo && args.contains("--update-demo"), let release = MacRelease.parse(UpdateTests.fixture("macos-v1.3.0-preview.1")) { model.updater.seedPreview(release) }
         if args.contains("--render"), let index = args.firstIndex(of: "--render"), args.count > index + 1 {
             render(to: args[index + 1]); return
@@ -51,14 +78,17 @@ import SwiftUI
             }
             model.refreshQuotas(automatic: true)
             quotaTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.model.quotaTick(visible: self?.window?.isVisible == true && self?.window?.isMiniaturized == false) }
+                Task { @MainActor in
+                    if let self, self.model.page == "tokens", self.window?.isVisible == true, self.window?.isMiniaturized == false { self.model.tokenUsage.refresh(home: self.model.paths.codexHome) }
+                    self?.model.quotaTick(visible: self?.window?.isVisible == true && self?.window?.isMiniaturized == false) }
             }
         }
     }
     private func render(to path: String) {
         NSApp.appearance = NSAppearance(named: model.library.appearance == "dark" ? .darkAqua : .aqua)
         let view = NSHostingView(rootView: RootView(model: model))
-        let frame = NSRect(x: 0, y: 0, width: 1060, height: CommandLine.arguments.contains("--settings") ? 1380 : 1360)
+        let compact = CommandLine.arguments.contains("--compact")
+        let frame = NSRect(x: 0, y: 0, width: compact ? 900 : 1060, height: compact ? 670 : CommandLine.arguments.contains("--settings") ? 1380 : 1360)
         let w = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         w.contentView = view; view.frame = frame; w.displayIfNeeded(); view.layoutSubtreeIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -124,7 +154,7 @@ import SwiftUI
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if model?.busy == true && model?.loginWaiting == false && model?.warmingAccountID == nil { NSSound.beep(); showWindow(); return .terminateCancel }
-        model?.broker.cancel(); model?.cancelQuotaRefresh(); model?.updater.cancel()
+        model?.tokenUsage.cancel(); model?.broker.cancel(); model?.cancelQuotaRefresh(); model?.updater.cancel()
         if model?.broker.cleaning == true || model?.refreshingQuotas == true {
             Task {
                 for _ in 0..<100 {
@@ -146,7 +176,7 @@ import SwiftUI
 @main struct Main {
     @MainActor static func main() {
         let app = NSApplication.shared; let delegate = AppDelegate()
-        app.setActivationPolicy(CommandLine.arguments.contains("--self-test") || CommandLine.arguments.contains("--render") || CommandLine.arguments.contains("--update-check-test") ? .prohibited : .regular)
+        app.setActivationPolicy(CommandLine.arguments.contains("--self-test") || CommandLine.arguments.contains("--render") || CommandLine.arguments.contains("--update-check-test") || CommandLine.arguments.contains("--token-scan-test") ? .prohibited : .regular)
         app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }

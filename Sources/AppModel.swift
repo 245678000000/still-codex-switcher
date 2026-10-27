@@ -19,6 +19,7 @@ import SwiftUI
     let demo: Bool
     let updater: UpdateController
     let broker = LoginBroker()
+    let tokenUsage = TokenUsageController()
     @Published var quotas: [UUID: QuotaState] = [:]
     @Published private(set) var refreshingQuotas = false
     private var quotaTask: Task<Void, Never>?
