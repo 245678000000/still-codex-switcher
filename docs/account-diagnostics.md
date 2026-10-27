@@ -38,4 +38,4 @@ Mac 与 Windows 的「账号诊断」为手动、逐账号检查入口。默认�
 - Windows：`--render /absolute/path.png --render-diagnostics`，支持 `--dark`、`--compact`、`--diagnostics-empty`、`--diagnostics-bottom`。
 - 所有渲染入口始终使用虚构账号。真实账号与服务端结果留待另行确认。
 
-此开发版暂不发布，不更新已安装应用。
+发布版本：macOS 1.5.0-preview.1 / Windows 1.4.0-preview.1。真实服务端诊断未在本次开发中执行；按用户确认发布并更新 Mac 安装。

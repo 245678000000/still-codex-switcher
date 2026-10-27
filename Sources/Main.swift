@@ -56,7 +56,7 @@ import SwiftUI
             model.library.accounts[0].warmup = WarmupRecord(enabled: true, result: "等待首次预热 · 不切换账号", scheduleVersion: 2)
             model.library.accounts[1].warmup = WarmupRecord(enabled: true, paused: true, result: "访问令牌过期 · 请更新登录备份", scheduleVersion: 2)
         }
-        if demo && args.contains("--diagnostics") { model.page = "diagnostics"; model.seedDiagnostics(empty: args.contains("--diagnostics-empty")) }
+        if args.contains("--diagnostics") { model.page = "diagnostics"; if demo { model.seedDiagnostics(empty: args.contains("--diagnostics-empty")) } }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
         if args.contains("--tokens") { model.page = "tokens"; if demo { model.tokenUsage.seedDemo() } }
@@ -89,7 +89,7 @@ import SwiftUI
         NSApp.appearance = NSAppearance(named: model.library.appearance == "dark" ? .darkAqua : .aqua)
         let view = NSHostingView(rootView: RootView(model: model))
         let compact = CommandLine.arguments.contains("--compact")
-        let frame = NSRect(x: 0, y: 0, width: compact ? 900 : 1060, height: compact ? 670 : CommandLine.arguments.contains("--settings") ? 1380 : 1360)
+        let frame = NSRect(x: 0, y: 0, width: compact ? 900 : 1060, height: compact ? 670 : CommandLine.arguments.contains("--diagnostics") ? 1800 : CommandLine.arguments.contains("--settings") ? 1380 : 1360)
         let w = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         w.contentView = view; view.frame = frame; w.displayIfNeeded(); view.layoutSubtreeIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

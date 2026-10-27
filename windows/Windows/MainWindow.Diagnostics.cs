@@ -79,6 +79,7 @@ public partial class MainWindow
         if (diagnostics.TryGetValue(account.Id, out var previous) && DateTimeOffset.UtcNow - previous.CheckedAt < TimeSpan.FromSeconds(30))
         { StatusText.Text = "检查刚刚完成，请等待 30 秒后重试。"; return; }
         if (!Confirm("检查「" + account.Label + "」？", "读取所选账号的本地凭据，再通过独立官方 CLI 查询额度和模型目录。不发送聊天消息，不触发预热，不切换或退出 Codex，也不刷新登录凭证。\n\n结果仅在本次运行期间保留；模型目录可能来自缓存，不代表实际推理验证。是否开始基础检查？")) return;
+        if (busy || refreshingQuotas) { StatusText.Text = "其他检查已开始，请稍后重试。"; return; }
         using var cancel = new CancellationTokenSource(); diagnosticCancel = cancel; diagnosing = account.Id;
         try
         {

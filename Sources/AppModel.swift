@@ -40,6 +40,7 @@ import SwiftUI
             message = "检查刚刚完成，请等待 30 秒后重试。"; return
         }
         guard confirm(title: "检查「\(account.label)」？", detail: "读取这个账号的本地凭据，并通过独立官方 CLI 查询额度和模型目录。不发送聊天消息，不触发自动预热，不切换或退出 Codex，也不刷新登录凭证。\n\n结果仅在本次栖言运行期间保留。模型目录可能来自缓存，不代表实际推理验证。", button: "开始基础检查") else { return }
+        guard !busy, !refreshingQuotas else { message = "其他检查已开始，请稍后重试。"; return }
         do { try begin("正在检查「\(account.label)」…") } catch { show(error); return }
         diagnosingAccountID = account.id
         diagnosticTask = Task {
