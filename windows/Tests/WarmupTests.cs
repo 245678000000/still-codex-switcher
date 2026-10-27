@@ -21,6 +21,13 @@ public static class WarmupTests
     public static async Task Run(Action<bool, string> check)
     {
         var now = DateTimeOffset.FromUnixTimeSeconds(1900000000);
+        check(!WarmupProtocol.SameDirectory("other-dir", "fixture-dir"), "warmup different cwd rejected");
+        if (OperatingSystem.IsWindows())
+        {
+            check(WarmupProtocol.SameDirectory(@"c:/Users/Fixture/Home/", @"C:\Users\Fixture\Home"), "warmup Windows equivalent path case/separators accepted");
+            check(WarmupProtocol.SameDirectory(@"\\?\C:\Users\Fixture\Home", @"C:\Users\Fixture\Home"), "warmup Windows local extended-path form accepted");
+            check(!WarmupProtocol.SameDirectory(@"C:\Users\Other\Home", @"C:\Users\Fixture\Home"), "warmup Windows unrelated cwd rejected");
+        }
         var q = QuotaSnapshot.Parse(J(Quota(now)), now);
         var enabled = new WarmupRecord(Enabled: true, ScheduleVersion: WarmupPolicy.Version);
         void Reject(Action action, string name) { try { action(); check(false, name); } catch (UserError) { check(true, name); } }

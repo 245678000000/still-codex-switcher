@@ -160,6 +160,24 @@ public sealed class WarmupProtocol(QuotaCredentials credentials, string director
     static bool True(JsonElement e, string key) => Obj(e, key).ValueKind == JsonValueKind.True;
     static object Request(int id, string method, object? parameters = null) => new { id, method, @params = parameters };
     static WarmupStep Send(params object[] messages) => new(messages);
+    public static bool SameDirectory(string? actual, string expected)
+    {
+        if (actual == expected) return true;
+        if (!OperatingSystem.IsWindows() || actual == null) return false;
+        try
+        {
+            // Rust and .NET may return different case, separators, or a local extended-path prefix.
+            // Normalize only local drive paths; never accept a relative path or another directory.
+            string Normalize(string p)
+            {
+                if (p.StartsWith(@"\\?\") && p.Length > 6 && char.IsAsciiLetter(p[4]) && p[5] == ':') p = p[4..];
+                if (!Path.IsPathFullyQualified(p)) throw new ArgumentException();
+                return Path.TrimEndingDirectorySeparator(Path.GetFullPath(p));
+            }
+            return string.Equals(Normalize(actual), Normalize(expected), StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException) { return false; }
+    }
     public static object Initialize => Request(1, "initialize", new { clientInfo = new { name = "still_window_warmup", version = "1.3.0" }, capabilities = new { experimentalApi = true } });
     public WarmupStep Receive(JsonElement frame, DateTimeOffset now)
     {
@@ -222,7 +240,7 @@ public sealed class WarmupProtocol(QuotaCredentials credentials, string director
             case 5:
                 var thread = Obj(result, "thread"); threadId = Str(thread, "id");
                 if (string.IsNullOrEmpty(threadId) || !True(thread, "ephemeral") || Str(result, "model") != WarmupPolicy.Model ||
-                    Str(result, "modelProvider") != "openai" || Str(result, "cwd") != directory || Str(result, "approvalPolicy") != "never" || Str(Obj(result, "sandbox"), "type") != "readOnly")
+                    Str(result, "modelProvider") != "openai" || !SameDirectory(Str(result, "cwd"), directory) || Str(result, "approvalPolicy") != "never" || Str(Obj(result, "sandbox"), "type") != "readOnly")
                     throw new UserError("临时会话隔离检查未通过，未发送预热消息。");
                 expected = 6;
                 return Send(Request(6, "turn/start", new { threadId, input = new[] { new { type = "text", text = "回复ok" } }, model = WarmupPolicy.Model,
