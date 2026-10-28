@@ -19,7 +19,7 @@
      <TextBlock Text="留在本机，随时就位。" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8"/>
      <TextBlock Text="Windows 用户级加密。&#10;不保存密码。额度查询仅连接官方服务。" Style="{StaticResource Muted}" FontSize="10.5"/>
     </StackPanel></Border>
-    <TextBlock x:Name="ModeLabel" Text="●  本地账号管理                 1.4.0" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
+    <TextBlock x:Name="ModeLabel" Text="●  本地账号管理                 1.5.0" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
    </StackPanel>
   </Grid>
  </Border>
@@ -57,6 +57,12 @@
           <StackPanel Grid.Column="2"><DockPanel><TextBlock Text="{Binding SevenPercent}" DockPanel.Dock="Right" FontWeight="SemiBold" Foreground="{Binding SevenColor}"/><TextBlock Text="7 天剩余" FontSize="11" Foreground="{DynamicResource MutedBrush}"/></DockPanel><ProgressBar Value="{Binding SevenValue, Mode=OneWay}" Maximum="100" Height="5" Margin="0,7,0,6" Foreground="{Binding SevenColor}" Background="{DynamicResource WashBrush}" BorderThickness="0"/><TextBlock Text="{Binding SevenReset}" FontSize="10" Foreground="{DynamicResource MutedBrush}"/></StackPanel>
          </Grid>
          <DockPanel Margin="0,8,0,0"><Button Content="刷新" DockPanel.Dock="Right" Tag="{Binding Account}" Click="RefreshAccountQuota" IsEnabled="{Binding CanRefresh}" Padding="8,2" FontSize="10" BorderThickness="0" Background="Transparent"/><TextBlock Text="{Binding QuotaStatus}" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="10" Foreground="{DynamicResource MutedBrush}"/></DockPanel>
+         <DockPanel Margin="0,9,0,0" ToolTip="{Binding ResetDetails}">
+          <Button Content="{Binding ResetButton}" DockPanel.Dock="Right" Tag="{Binding Account}" Click="UseResetCard" IsEnabled="{Binding CanUseReset}" Padding="8,3" FontSize="10" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource AccentBrush}"/>
+          <TextBlock Text="{Binding ResetCount}" DockPanel.Dock="Left" FontSize="10" FontWeight="Medium" Foreground="{DynamicResource AccentBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding ResetExpiry}" FontSize="10" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+         </DockPanel>
+         <TextBlock Text="{Binding ResetNotice}" Visibility="{Binding ResetNoticeVisibility}" FontSize="10" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
          <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Margin="0,11,0,0" Padding="0,11,0,0"><StackPanel>
           <DockPanel><Button Content="预热一次…" DockPanel.Dock="Right" Tag="{Binding Account}" Click="WarmupOnce" IsEnabled="{Binding CanRefresh}" Padding="8,3" FontSize="11" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource AccentBrush}"/>
            <CheckBox Content="自动预热" Tag="{Binding Account}" IsChecked="{Binding WarmupEnabled, Mode=OneWay}" Click="ToggleWarmup" IsEnabled="{Binding CanRefresh}" Style="{StaticResource WarmupToggle}" VerticalAlignment="Center" ToolTip="会消耗实际额度；开启前需确认"/>

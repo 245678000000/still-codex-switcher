@@ -23,6 +23,52 @@ import SwiftUI
     @Published var quotas: [UUID: QuotaState] = [:]
     @Published private(set) var refreshingQuotas = false
     private var quotaTask: Task<Void, Never>?
+    @Published private(set) var resettingAccountID: UUID?
+    @Published var resetNotices: [UUID: String] = [:]
+    func useReset(_ account: SavedAccount) {
+        guard !busy, !refreshingQuotas, libraryReady else { return }
+        let state = quotas[account.id] ?? QuotaState()
+        guard account.resetAttempt != nil || state.canStartReset() else { message = "请先刷新重置卡信息。"; return }
+        let retry = account.resetAttempt != nil
+        let details = retry ? "这会沿用上次请求标识核对结果；若上次尚未生效，将继续使用同一张卡。不会创建第二次消耗。" : "将为这个账号使用 1 张重置卡，恢复官方规则覆盖的额度。已使用的卡不返还，额度窗口时间可能变化。\n\n" + (state.snapshot?.resetCredits?.details() ?? "有效期待确认")
+        guard confirm(title: retry ? "核对「\(account.label)」上次重置？" : "为「\(account.label)」使用 1 张重置卡？", detail: account.email + "\n\n" + details + "\n\n不切换当前 Codex 账号，不购买付费重置。", button: retry ? "核对上次请求" : "使用 1 张") else { return }
+        guard !busy, !refreshingQuotas else { message = "其他操作已开始，请稍后重试。"; return }
+        if demo { message = "演示确认完成 · 未消耗真实重置卡"; return }
+        do { try begin("正在处理「\(account.label)」重置卡…") } catch { show(error); return }
+        resettingAccountID = account.id
+        Task {
+            defer { self.resettingAccountID = nil; self.end() }
+            do {
+                guard let index = self.library.accounts.firstIndex(where: { $0.id == account.id && $0.identityKey == account.identityKey }), self.library.accounts[index].resetAttempt == account.resetAttempt else { throw SwitchError("账号或上次请求已变化，请核对列表后重试。") }
+                guard let cli = CodexDesktop.find()?.cli else { throw SwitchError("请先安装并打开一次官方 Codex。") }
+                try SecureFile.checkFileMode(self.paths.config)
+                let live = try SecureFile.read(self.paths.auth)
+                let auth: Data
+                if let live, (try? Identity.read(live).key) == account.identityKey { auth = live }
+                else { guard let saved = try self.vault.get(account.id.uuidString) else { throw SwitchError("登录备份缺失，请重新添加账号。") }; auth = saved }
+                _ = try QuotaCredentials.read(auth, expectedKey: account.identityKey)
+                guard let attempt = try ResetAttempt.prepare(existing: account.resetAttempt, state: state, confirmed: true, lastResetAt: self.library.accounts[index].lastResetAt) else { return }
+                var next = self.library; next.accounts[index].resetAttempt = attempt
+                try SecureFile.saveLibrary(next, to: self.paths.metadata); self.library = next
+                self.resetNotices[account.id] = "正在确认官方结果…"
+                let outcome = try await QuotaBroker.consumeReset(cli: cli, root: self.paths.root, auth: auth, expectedKey: account.identityKey, attempt: attempt)
+                // Persist the acknowledgement before allowing a new logical attempt.
+                next.accounts[index].resetAttempt = nil; next.accounts[index].lastResetAt = Date()
+                try SecureFile.saveLibrary(next, to: self.paths.metadata); self.library = next
+                self.quotas[account.id] = QuotaState()
+                self.resetNotices[account.id] = outcome.message
+                do {
+                    let updated = try await QuotaBroker.read(cli: cli, root: self.paths.root, auth: auth, expectedKey: account.identityKey)
+                    self.quotas[account.id] = QuotaState(snapshot: updated, attemptedAt: Date())
+                } catch { self.resetNotices[account.id] = outcome.message + " · 额度刷新未完成，请稍后刷新" }
+                self.message = self.resetNotices[account.id] ?? outcome.message
+            } catch {
+                let pending = self.library.accounts.first(where: { $0.id == account.id })?.resetAttempt != nil
+                self.resetNotices[account.id] = pending ? "结果待确认 · 请核对上次请求，避免重复消耗" : (error as? SwitchError)?.message ?? "重置准备未完成，请稍后重试"
+                self.message = self.resetNotices[account.id] ?? "请核对重置状态"
+            }
+        }
+    }
     @Published private(set) var warmingAccountID: UUID?
     @Published private var warmupNotices: [UUID: String] = [:]
     func warmupEnabled(_ account: SavedAccount) -> Bool { account.warmup?.enabled == true && account.warmup?.scheduleVersion == 2 }
@@ -97,6 +143,7 @@ import SwiftUI
             let now = Date()
             quotas[library.accounts[0].id] = QuotaState(snapshot: QuotaSnapshot(fiveHours: QuotaWindow(remaining: 76, resetsAt: now.addingTimeInterval(10800)), sevenDays: QuotaWindow(remaining: 42, resetsAt: now.addingTimeInterval(345600)), fetchedAt: now))
             quotas[library.accounts[1].id] = QuotaState(snapshot: QuotaSnapshot(fiveHours: QuotaWindow(remaining: 18, resetsAt: now.addingTimeInterval(2400)), sevenDays: QuotaWindow(remaining: 8, resetsAt: now.addingTimeInterval(86400)), fetchedAt: now))
+            seedResetCards()
             return
         }
         do { library = try SecureFile.loadLibrary(paths.metadata) }
@@ -135,7 +182,7 @@ import SwiftUI
         let old = existing.map { next.accounts[$0] }
         let name = identity.email.contains("@") ? String(identity.email.split(separator: "@")[0]) : "我的账号"
         let account = SavedAccount(id: id, identityKey: identity.key, label: old?.label ?? name,
-                                   email: identity.email, plan: identity.plan, savedAt: Date(), color: old?.color ?? next.accounts.count % 4, warmup: old?.warmup)
+                                   email: identity.email, plan: identity.plan, savedAt: Date(), color: old?.color ?? next.accounts.count % 4, warmup: old?.warmup, resetAttempt: old?.resetAttempt, lastResetAt: old?.lastResetAt)
         if let existing { next.accounts[existing] = account } else { next.accounts.append(account) }
         try vault.put(data, for: key)
         do { try SecureFile.saveLibrary(next, to: paths.metadata); library = next }
@@ -236,6 +283,7 @@ import SwiftUI
         guard confirm(title: "移除「\(account.label)」的保存记录？", detail: "只删除切换器保存的账号与钥匙串凭据。Codex 当前登录、聊天记录和订阅保持原样。上一次切换的独立回滚备份仍会保留。", button: "移除记录") else { return }
         do {
             try begin("移除保存记录…"); defer { end() }
+            guard library.accounts.first(where: { $0.id == account.id })?.resetAttempt == nil else { throw SwitchError("请先核对上次重置请求，再移除账号，保留防重复扣卡记录。") }
             let previous = try vault.get(account.id.uuidString)
             try vault.remove(account.id.uuidString)
             var next = library; next.accounts.removeAll { $0.id == account.id }

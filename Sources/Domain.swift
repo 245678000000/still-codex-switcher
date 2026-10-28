@@ -44,6 +44,8 @@ struct SavedAccount: Codable, Identifiable, Equatable {
     var savedAt: Date
     var color: Int
     var warmup: WarmupRecord?
+    var resetAttempt: ResetAttempt?
+    var lastResetAt: Date?
 }
 struct SwitchLibrary: Codable {
     var version = 1

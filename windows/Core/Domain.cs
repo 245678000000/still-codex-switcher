@@ -35,7 +35,7 @@ public sealed record Identity(string Key, string Email, string Plan)
         { throw new UserError("登录资料格式不完整。请通过 ChatGPT 登录 Codex；此版本不切换 API Key 或临时凭据。"); }
     }
 }
-public sealed record Account(Guid Id, string IdentityKey, string Label, string Email, string Plan, DateTimeOffset SavedAt, int Color, WarmupRecord? Warmup = null);
+public sealed record Account(Guid Id, string IdentityKey, string Label, string Email, string Plan, DateTimeOffset SavedAt, int Color, WarmupRecord? Warmup = null, ResetAttempt? ResetAttempt = null, DateTimeOffset? LastResetAt = null);
 public sealed class Library
 {
     public int Version { get; set; } = 1;
@@ -161,7 +161,7 @@ public sealed class AccountStore(Paths paths, IVault vault, Action<string, bool>
         var identity = Identity.Read(data); var next = lib.Clone();
         var old = next.Accounts.FirstOrDefault(a => a.IdentityKey == identity.Key);
         var name = identity.Email.Contains('@') ? identity.Email.Split('@')[0] : "我的账号";
-        var a = new Account(old?.Id ?? Guid.NewGuid(), identity.Key, old?.Label ?? name, identity.Email, identity.Plan, DateTimeOffset.Now, old?.Color ?? next.Accounts.Count % 4, old?.Warmup);
+        var a = new Account(old?.Id ?? Guid.NewGuid(), identity.Key, old?.Label ?? name, identity.Email, identity.Plan, DateTimeOffset.Now, old?.Color ?? next.Accounts.Count % 4, old?.Warmup, old?.ResetAttempt, old?.LastResetAt);
         var previous = vault.Get(a.Id.ToString());
         if (old != null) next.Accounts[next.Accounts.IndexOf(old)] = a; else next.Accounts.Add(a);
         vault.Put(a.Id.ToString(), data);
@@ -178,6 +178,7 @@ public sealed class AccountStore(Paths paths, IVault vault, Action<string, bool>
     }
     public Library Remove(Library lib, Guid id)
     {
+        if (lib.Accounts.FirstOrDefault(a => a.Id == id)?.ResetAttempt != null) throw new UserError("请先核对上次重置请求，再移除账号，保留防重复扣卡记录。");
         var next = lib.Clone(); next.Accounts.RemoveAll(a => a.Id == id);
         var previous = vault.Get(id.ToString()); vault.Remove(id.ToString());
         try { Save(next); } catch { if (previous != null) vault.Put(id.ToString(), previous); throw; }

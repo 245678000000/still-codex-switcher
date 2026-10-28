@@ -28,6 +28,14 @@ static class FakeServer
                 6 => new { turn = new { id = "pipe-turn" } },
                 _ => new { }
             };
+            if (mode == "reset" && n == 3)
+            {
+                if (f.GetProperty("method").GetString() != "account/rateLimitResetCredit/consume" ||
+                    f.GetProperty("params").GetProperty("idempotencyKey").GetString() != "00000000-0000-4000-8000-000000000123" ||
+                    f.GetProperty("params").GetProperty("creditId").GetString() != "fixture-card" ||
+                    Environment.GetEnvironmentVariable("HOME") != home) return 9;
+                result = new { outcome = "alreadyRedeemed" };
+            }
             if (n == 6)
                 await Console.Out.WriteLineAsync(JsonSerializer.Serialize(new { method = "turn/completed", @params = new { threadId = "pipe-thread", turn = new { id = "pipe-turn", status = "completed" } } }));
             await Console.Out.WriteLineAsync(JsonSerializer.Serialize(new { id = n, result }));

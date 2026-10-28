@@ -37,11 +37,12 @@ public partial class MainWindow : Window
         if (demo)
         {
             library.Accounts = new[] { ("Personal", "personal@example.com", "plus"), ("工作空间", "work@example.com", "team"), ("日常探索", "explore@example.com", "free") }.Select((v, i) => new Account(Guid.NewGuid(), "demo-" + i, v.Item1, v.Item2, v.Item3, DateTimeOffset.Now, i)).ToList();
-            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.4.0";
+            current = new("demo-0", "personal@example.com", "plus"); ModeLabel.Text = "●  演示模式 · 虚构账号          1.5.0";
             StatusText.Text = "界面演示：不读取真实账号，也不切换 Codex。";
             var now = DateTimeOffset.UtcNow;
             quotas[library.Accounts[0].Id] = new(new(new(76, now.AddHours(3)), new(42, now.AddDays(4)), now));
             quotas[library.Accounts[1].Id] = new(new(new(18, now.AddMinutes(40)), new(8, now.AddDays(1)), now));
+            SeedResetCards();
         }
         else
         {
@@ -115,7 +116,7 @@ public partial class MainWindow : Window
         if (!initialized) return;
         var filtered = library.Accounts.Where(a => (a.Label + a.Email).Contains(SearchBox.Text ?? "", StringComparison.OrdinalIgnoreCase));
         foreach (var id in quotas.Keys.Where(id => !library.Accounts.Any(a => a.Id == id)).ToArray()) quotas.Remove(id);
-        var rows = filtered.Select(a => new AccountRow(a, a.IdentityKey == current?.Key, busy || !ready, IsDark(), quotas.GetValueOrDefault(a.Id) ?? new(), refreshingQuotas, WarmupStatus(a))).ToList();
+        var rows = filtered.Select(a => new AccountRow(a, a.IdentityKey == current?.Key, busy || !ready, IsDark(), quotas.GetValueOrDefault(a.Id) ?? new(), refreshingQuotas, WarmupStatus(a), resetNotices.GetValueOrDefault(a.Id), resetting == a.Id)).ToList();
         AccountsList.ItemsSource = rows;
         EmptyState.Visibility = library.Accounts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         NoMatches.Visibility = library.Accounts.Count > 0 && rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -400,8 +401,15 @@ public partial class MainWindow : Window
         else StatusText.Text = "当前操作正在完成，请稍后再关闭。";
     }
 }
-public sealed class AccountRow(Account account, bool current, bool busy, bool dark, QuotaState quota, bool refreshing, string warmupText)
+public sealed class AccountRow(Account account, bool current, bool busy, bool dark, QuotaState quota, bool refreshing, string warmupText, string? resetNotice = null, bool resetting = false)
 {
+    public string ResetCount => quota.Snapshot?.ResetCredits?.CountLabel ?? "重置卡 —";
+    public string ResetExpiry => quota.Snapshot?.ResetCredits?.ExpiryLabel(DateTimeOffset.UtcNow) ?? (quota.Snapshot == null ? "待刷新" : "组件未返回");
+    public string ResetDetails => quota.Snapshot?.ResetCredits?.Details(DateTimeOffset.UtcNow) ?? "点击刷新后查看重置卡数量与有效期。";
+    public string ResetButton => resetting ? "处理中…" : account.ResetAttempt != null ? "核对上次请求…" : "使用一张…";
+    public bool CanUseReset => CanRefresh && (account.ResetAttempt != null || ResetCredits.CanStart(quota, DateTimeOffset.UtcNow));
+    public string ResetNotice => resetNotice ?? (account.ResetAttempt != null ? "上次结果待确认 · 核对时沿用同一请求，避免重复扣卡" : quota.IsStale(DateTimeOffset.UtcNow) ? "上次卡片信息 · 刷新后再使用" : "");
+    public Visibility ResetNoticeVisibility => ResetNotice.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     public bool WarmupEnabled => account.Warmup is { Enabled: true, ScheduleVersion: WarmupPolicy.Version };
     public string WarmupText => warmupText;
     public Account Account => account;

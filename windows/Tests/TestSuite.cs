@@ -40,6 +40,7 @@ public static class TestSuite
             TokenUsageTests.Run(Check, Path.Combine(root, "token-fixtures"));
             await QuotaTests.Run(Check);
             await DiagnosticsTests.Run(Check);
+            await ResetCreditTests.Run(Check);
             await WarmupTests.Run(Check);
             var a = Fixture(); var b = Fixture("fixture-b", "workspace-b");
             var ia = Identity.Read(a); var ib = Identity.Read(b);

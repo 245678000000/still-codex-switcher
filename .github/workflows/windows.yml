@@ -57,13 +57,22 @@ jobs:
             if ($p.ExitCode -ne 0) { throw "Diagnostics $case render/UI tests failed" }
           }
           'PASS native diagnostics UI: result, exhausted and unknown states; no live account or inference request; five renders' | Set-Content dist/diagnostics-ui-tests.txt
+          foreach ($case in @('light','dark','compact','pending')) {
+            $arguments = @('--render',"$pwd/dist/reset-cards-$case.png",'--render-accounts','--render-reset-cards')
+            if ($case -eq 'dark') { $arguments += '--dark' }
+            if ($case -eq 'compact') { $arguments += '--compact' }
+            if ($case -eq 'pending') { $arguments += '--reset-pending' }
+            $p = Start-Process $exe -ArgumentList $arguments -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "Reset card $case render/UI tests failed" }
+          }
+          'PASS native reset-card UI: balance, expiry, zero/unknown disabled, pending retry, busy disables all; four renders, synthetic only' | Set-Content dist/reset-cards-ui-tests.txt
           $navReports = @(Get-ChildItem dist/*.nav.json)
-          if ($navReports.Count -ne 18) { throw 'Missing navigation geometry reports' }
+          if ($navReports.Count -ne 22) { throw 'Missing navigation geometry reports' }
           foreach ($report in $navReports) {
             $geometry = Get-Content $report.FullName | ConvertFrom-Json
             if (-not $geometry.passed) { throw 'Sidebar geometry check failed' }
           }
-          'PASS sidebar geometry: four labels share left edge, account count stays right; 18 renders across selected pages, light/dark and compact views' | Set-Content dist/sidebar-ui-tests.txt
+          'PASS sidebar geometry: four labels share left edge, account count stays right; 22 renders across selected pages, light/dark and compact views' | Set-Content dist/sidebar-ui-tests.txt
           $normal = Get-Content dist/tokens-light.png.json | ConvertFrom-Json
           $compact = Get-Content dist/tokens-compact.png.json | ConvertFrom-Json
           if ($compact.width -ge $normal.width -or $compact.height -ge $normal.height) { throw 'Compact viewport not reduced' }

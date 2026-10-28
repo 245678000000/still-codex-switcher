@@ -39,9 +39,9 @@ struct ReleaseVersion: Comparable {
 }
 
 enum AppRelease {
-    static let fallbackVersion = "1.5.0-preview.1"
+    static let fallbackVersion = "1.6.0-preview.1"
     static var current: String { Bundle.main.object(forInfoDictionaryKey: "StillUpdateVersion") as? String ?? fallbackVersion }
-    static var short: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.5.0" }
+    static var short: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.6.0" }
     static let repository = "245678000000/still-codex-switcher"
     static let assetName = "Codex-Account-Switcher-macOS.zip"
     static let releasesURL = URL(string: "https://github.com/\(repository)/releases")!

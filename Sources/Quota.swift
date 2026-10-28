@@ -16,6 +16,7 @@ struct QuotaSnapshot: Equatable {
     let fiveHours: QuotaWindow?
     let sevenDays: QuotaWindow?
     let fetchedAt: Date
+    var resetCredits: ResetCredits? = nil
     static func number(_ value: Any?) -> Double? {
         guard let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue.isFinite else { return nil }
         return n.doubleValue
@@ -36,7 +37,7 @@ struct QuotaSnapshot: Equatable {
             return QuotaWindow(remaining: min(100, max(0, 100 - used)), resetsAt: reset)
         }
         // Window positions are not durations. Unknown/missing buckets never mean full allowance.
-        return QuotaSnapshot(fiveHours: read(300), sevenDays: read(10080), fetchedAt: now)
+        return QuotaSnapshot(fiveHours: read(300), sevenDays: read(10080), fetchedAt: now, resetCredits: ResetCredits.parse(result["rateLimitResetCredits"]))
     }
 }
 struct QuotaState {

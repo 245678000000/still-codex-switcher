@@ -26,6 +26,7 @@ final class MemoryVault: SecretVault {
             try await TokenUsageTests.run(check, root: root.appendingPathComponent("token-fixtures"))
             try await QuotaTests.run(check, root: root.appendingPathComponent("quota-fixtures"))
             try await DiagnosticsTests.run(check, root: root.appendingPathComponent("diagnostics-fixtures"))
+            try await ResetCreditTests.run(check, root: root.appendingPathComponent("reset-fixtures"))
             try await UpdateTests.run(check)
             try await WarmupTests.run(check, root: root.appendingPathComponent("warmup-fixtures"))
             let a = try fixture(); let b = try fixture("test-user-b", account: "test-workspace-b")

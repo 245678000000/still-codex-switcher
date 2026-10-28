@@ -6,6 +6,14 @@
 
 **平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
 
+### 最新：重置卡小字入口
+
+[macOS 1.6.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.6.0-preview.1) · [Windows 1.5.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.5.0-preview.1)
+
+每个账号显示重置卡余量、有效期和「使用一张…」。确认后消耗一次，结果不明时保留同一请求标识供核对，避免重复扣卡；保留基础诊断、自动预热和 Token 统计。[重置卡说明](docs/reset-cards.md)。
+
+以下为历史版本说明。
+
 **[下载 macOS 账号预热修复版 1.3.1-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.1-preview.1)**：逐账号开启自动预热（默认关闭），手动预热可在重置时间之前尝试，保留额度显示和自动检查更新。预热会产生实际模型用量；仅使用访问令牌，不复制或刷新登录凭证。详细行为和测试边界见 [预热说明](docs/macos-window-warmup.md)。
 
 已安装 1.2.0 或 1.3.0 的用户可开启「接收预览版本」，再点击「检查更新」下载新版。检查器不自动替换应用或退出 Codex。[更新功能说明](docs/macos-updates.md) · [额度说明](docs/macos-quota.md)

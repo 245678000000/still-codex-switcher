@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Still.Core;
 
 public sealed record QuotaWindow(double RemainingPercent, DateTimeOffset? ResetsAt);
-public sealed record QuotaSnapshot(QuotaWindow? FiveHours, QuotaWindow? SevenDays, DateTimeOffset FetchedAt)
+public sealed record QuotaSnapshot(QuotaWindow? FiveHours, QuotaWindow? SevenDays, DateTimeOffset FetchedAt, ResetCredits? ResetCredits = null)
 {
     public static QuotaSnapshot Parse(JsonElement result, DateTimeOffset now)
     {
@@ -17,9 +17,10 @@ public sealed record QuotaSnapshot(QuotaWindow? FiveHours, QuotaWindow? SevenDay
             map.TryGetProperty("codex", out bucket);
         }
         else if (result.TryGetProperty("rateLimits", out var legacy)) bucket = legacy;
-        if (bucket.ValueKind != JsonValueKind.Object) return new(null, null, now);
+        var cards = Still.Core.ResetCredits.Parse(result);
+        if (bucket.ValueKind != JsonValueKind.Object) return new(null, null, now, cards);
         if (bucket.TryGetProperty("limitId", out var id) && id.ValueKind == JsonValueKind.String && id.GetString() != "codex")
-            return new(null, null, now);
+            return new(null, null, now, cards);
         QuotaWindow? Read(int duration)
         {
             var matches = new List<JsonElement>();
@@ -36,7 +37,7 @@ public sealed record QuotaSnapshot(QuotaWindow? FiveHours, QuotaWindow? SevenDay
                 try { reset = DateTimeOffset.FromUnixTimeSeconds(seconds); } catch (ArgumentOutOfRangeException) { }
             return new(Math.Clamp(100 - used, 0, 100), reset);
         }
-        return new(Read(300), Read(10080), now);
+        return new(Read(300), Read(10080), now, cards);
     }
 }
 

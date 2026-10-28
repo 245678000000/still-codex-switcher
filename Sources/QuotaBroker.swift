@@ -65,15 +65,26 @@ enum QuotaBroker {
             }.value
         }, onCancel: { stop.cancel() })
     }
-    private enum Reply { case quota(QuotaSnapshot), warmup(WarmupResult), diagnostic(DiagnosticReport) }
+    static func consumeReset(cli: URL, root: URL, auth: Data, expectedKey: String, attempt: ResetAttempt, timeout: TimeInterval = 45) async throws -> ResetOutcome {
+        let credentials = try QuotaCredentials.read(auth, expectedKey: expectedKey)
+        let stop = QuotaStop()
+        return try await withTaskCancellationHandler(operation: {
+            try Task.checkCancellation()
+            return try await Task.detached(priority: .utility) {
+                guard case .resetCard(let outcome) = try exchange(cli: cli, root: root, credentials: credentials, stop: stop, timeout: timeout, resetAttempt: attempt) else { throw SwitchError("重置结果待确认；请求标识已保留。") }
+                return outcome
+            }.value
+        }, onCancel: { stop.cancel() })
+    }
+    private enum Reply { case quota(QuotaSnapshot), warmup(WarmupResult), diagnostic(DiagnosticReport), resetCard(ResetOutcome) }
     private static func query(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval) throws -> QuotaSnapshot {
         guard case .quota(let value) = try exchange(cli: cli, root: root, credentials: credentials, stop: stop, timeout: timeout) else { throw SwitchError("额度返回类型异常。") }
         return value
     }
-    private static func exchange(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval, reset: Date? = nil, diagnostic: Bool = false) throws -> Reply {
+    private static func exchange(cli: URL, root: URL, credentials: QuotaCredentials, stop: QuotaStop, timeout: TimeInterval, reset: Date? = nil, diagnostic: Bool = false, resetAttempt: ResetAttempt? = nil) throws -> Reply {
         try stop.check()
         let canonical = canonicalSystemURL(root)
-        let parent = canonical.appendingPathComponent(diagnostic ? "diagnostic-queries" : reset == nil ? "quota-queries" : "warmup-requests")
+        let parent = canonical.appendingPathComponent(resetAttempt != nil ? "reset-requests" : diagnostic ? "diagnostic-queries" : reset == nil ? "quota-queries" : "warmup-requests")
         try privateDirectory(parent)
         let dir = parent.appendingPathComponent(UUID().uuidString); try privateDirectory(dir)
         let p = Process(); let stdin = Pipe(); let stdout = Pipe()
@@ -96,7 +107,7 @@ enum QuotaBroker {
         var env = ProcessInfo.processInfo.environment
         for key in ["OPENAI_API_KEY", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "OPENAI_BASE_URL", "CODEX_THREAD_ID", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "RUST_LOG"] { env.removeValue(forKey: key) }
         env["CODEX_HOME"] = dir.path
-        if reset != nil || diagnostic {
+        if reset != nil || diagnostic || resetAttempt != nil {
             // Strict allowlist: no live HOME/config, refresh tokens, API keys, endpoint overrides or shared databases.
             let temporary = dir.appendingPathComponent("tmp"); try privateDirectory(temporary)
             env = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": dir.path, "CODEX_HOME": dir.path,
@@ -134,6 +145,7 @@ enum QuotaBroker {
         var state = QuotaProtocol(credentials: credentials)
         var warm = reset.map { WarmupProtocol(credentials: credentials, directory: dir.path, reset: $0) }
         var diagnosticState = DiagnosticProtocol(credentials: credentials)
+        var resetState = resetAttempt.map { ResetProtocol(credentials: credentials, attempt: $0) }
         try send(diagnostic ? DiagnosticProtocol.initialize : reset == nil ? QuotaProtocol.initialize : WarmupProtocol.initialize)
         var buffer = Data(); var chunk = [UInt8](repeating: 0, count: 8192)
         while true {
@@ -150,6 +162,14 @@ enum QuotaBroker {
             while let end = buffer.firstIndex(of: 0x0a) {
                 let line = Data(buffer[..<end]); buffer.removeSubrange(...end)
                 guard let obj = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { throw SwitchError("额度响应格式异常。") }
+                if resetState != nil {
+                    switch try resetState!.receive(obj) {
+                    case .ignore: break
+                    case .send(let messages): for message in messages { try send(message) }
+                    case .result(let outcome): return .resetCard(outcome)
+                    }
+                    continue
+                }
                 if diagnostic {
                     switch try diagnosticState.receive(obj) {
                     case .ignore: break

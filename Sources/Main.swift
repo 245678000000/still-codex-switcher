@@ -57,6 +57,7 @@ import SwiftUI
             model.library.accounts[1].warmup = WarmupRecord(enabled: true, paused: true, result: "访问令牌过期 · 请更新登录备份", scheduleVersion: 2)
         }
         if args.contains("--diagnostics") { model.page = "diagnostics"; if demo { model.seedDiagnostics(empty: args.contains("--diagnostics-empty")) } }
+        if demo && args.contains("--reset-pending") { model.seedResetCards(pending: true) }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
         if args.contains("--tokens") { model.page = "tokens"; if demo { model.tokenUsage.seedDemo() } }
@@ -87,9 +88,11 @@ import SwiftUI
     }
     private func render(to path: String) {
         NSApp.appearance = NSAppearance(named: model.library.appearance == "dark" ? .darkAqua : .aqua)
-        let view = NSHostingView(rootView: RootView(model: model))
+        let cardOnly = CommandLine.arguments.contains("--render-reset-card")
+        let root: AnyView = cardOnly ? AnyView(AccountRow(model: model, account: model.library.accounts[0]).padding(24).background(Palette.background).foregroundStyle(Palette.ink).preferredColorScheme(model.appearance)) : AnyView(RootView(model: model))
+        let view = NSHostingView(rootView: root)
         let compact = CommandLine.arguments.contains("--compact")
-        let frame = NSRect(x: 0, y: 0, width: compact ? 900 : 1060, height: compact ? 670 : CommandLine.arguments.contains("--diagnostics") ? 1800 : CommandLine.arguments.contains("--settings") ? 1380 : 1360)
+        let frame = NSRect(x: 0, y: 0, width: cardOnly ? 620 : compact ? 900 : 1060, height: cardOnly ? 370 : compact ? 670 : CommandLine.arguments.contains("--diagnostics") ? 1800 : CommandLine.arguments.contains("--settings") ? 1380 : 1360)
         let w = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         w.contentView = view; view.frame = frame; w.displayIfNeeded(); view.layoutSubtreeIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

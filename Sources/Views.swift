@@ -288,6 +288,7 @@ struct AccountRow: View {
         AccountQuotaView(state: model.quotas[account.id] ?? QuotaState(), disabled: model.busy || model.refreshingQuotas) {
             model.refreshQuotas(accountID: account.id)
         }
+        ResetCreditRow(model: model, account: account)
         Hairline()
         VStack(alignment: .leading, spacing: 7) {
             HStack {
