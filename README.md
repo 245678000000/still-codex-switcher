@@ -150,3 +150,8 @@ Mac 版新增左侧「Token 统计」：今日 / 近 7 天 / 近 30 天 / 全部
 ## Windows Token 统计
 
 Windows 1.2 预览版同步本机桌面主会话 Token 统计：区间筛选、分类计数、趋势、模型分布和 CSV 导出。数据口径与 Mac 版一致，详见 [Windows 使用与升级说明](windows/README.md)。
+
+
+## 社区
+
+本项目认可 [LINUX DO](https://linux.do/) 社区，感谢佬友们的交流与反馈。
