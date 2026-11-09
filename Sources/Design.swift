@@ -23,6 +23,12 @@ enum Palette {
   static let accentWash = adaptive(0xE7F0E9, 0x30463A)
   static let button = adaptive(0x2E6049, 0xA5CFB2)
   static let buttonText = adaptive(0xFFFFFF, 0x1D3527)
+  // Auth states reuse the quota meter's amber/red so the two read as one system.
+  static let warning = adaptive(0xA57626, 0xE1B875)
+  static let warningWash = adaptive(0xF8F0E1, 0x43392A)
+  static let danger = adaptive(0xB94343, 0xED9290)
+  static let dangerWash = adaptive(0xFBEDEC, 0x452C2C)
+  static let buttonTextOnDanger = adaptive(0xFFFFFF, 0x2A1414)
   static func avatar(_ tone: Int) -> Color {
     switch tone % 4 {
     case 1: return adaptive(0x708A9A, 0x9DBBC9)
@@ -35,12 +41,13 @@ enum Palette {
 
 struct PressStyle: ButtonStyle {
   var primary = false
+  var danger = false
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .padding(.horizontal, primary ? 18 : 12).padding(.vertical, primary ? 12 : 9)
-      .foregroundStyle(primary ? Palette.buttonText : Palette.ink)
+      .foregroundStyle(primary ? (danger ? Palette.buttonTextOnDanger : Palette.buttonText) : (danger ? Palette.danger : Palette.ink))
       .background(
-        primary ? Palette.button : Palette.surface, in: RoundedRectangle(cornerRadius: 11)
+        primary ? (danger ? Palette.danger : Palette.button) : Palette.surface, in: RoundedRectangle(cornerRadius: 11)
       )
       .overlay(
         RoundedRectangle(cornerRadius: 11).stroke(primary ? .clear : Palette.line, lineWidth: 1)

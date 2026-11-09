@@ -35,6 +35,67 @@ struct Identity: Equatable {
         return Identity(key: key, email: claims["email"] as? String ?? "未显示邮箱", plan: auth["chatgpt_plan_type"] as? String ?? "chatgpt")
     }
 }
+enum JWTClaims {
+    /// Decodes the unverified payload of a JWT. Used only for local display and freshness hints.
+    static func decode(_ token: String) -> [String: Any]? {
+        let parts = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        var base = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        base += String(repeating: "=", count: (4 - base.count % 4) % 4)
+        guard let payload = Data(base64Encoded: base) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any]
+    }
+}
+/// Non-secret facts about one saved login copy: a short hash plus token times. Never token text.
+struct CredentialStamp: Codable, Equatable {
+    var fingerprint: String
+    var issuedAt: Date?
+    var expiresAt: Date?
+    static func read(_ data: Data) -> CredentialStamp? {
+        guard data.count < 2_000_000,
+              let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let tokens = object["tokens"] as? [String: Any],
+              let access = tokens["access_token"] as? String, !access.isEmpty else { return nil }
+        let fingerprint = SHA256.hash(data: Data(access.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+        let claims = JWTClaims.decode(access)
+        let refreshed = (object["last_refresh"] as? String).flatMap(parseDate)
+        let issued = [epoch(claims?["iat"]), refreshed].compactMap { $0 }.max()
+        return CredentialStamp(fingerprint: fingerprint, issuedAt: issued, expiresAt: epoch(claims?["exp"]))
+    }
+    /// True only when both copies carry a time and this one is clearly older. Unknown times never block an update.
+    func isOlder(than other: CredentialStamp?) -> Bool {
+        guard let mine = issuedAt, let theirs = other?.issuedAt else { return false }
+        return mine < theirs.addingTimeInterval(-1)
+    }
+    static func epoch(_ value: Any?) -> Date? {
+        guard let seconds = QuotaSnapshot.number(value), seconds > 946_684_800, seconds < 4_102_444_800 else { return nil }
+        return Date(timeIntervalSince1970: seconds)
+    }
+    /// Codex writes RFC 3339 with up to nine fractional digits; Foundation's parser accepts at most three.
+    static func parseDate(_ text: String) -> Date? {
+        var value = text.trimmingCharacters(in: .whitespaces)
+        var fraction = 0.0
+        if let dot = value.firstIndex(of: "."), let end = value[dot...].dropFirst().firstIndex(where: { !$0.isNumber }) {
+            fraction = Double("0" + value[dot..<end]) ?? 0
+            value.removeSubrange(dot..<end)
+        }
+        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: value).map { $0.addingTimeInterval(fraction) }
+    }
+}
+/// The last answer from the official service about one exact login copy (matched by fingerprint).
+struct AuthVerdict: Codable, Equatable {
+    enum Kind: String, Codable { case accepted, rejected }
+    var kind: Kind
+    var fingerprint: String
+    var at: Date
+}
+/// The official CLI received 401 for the access token it was given and asked for new tokens.
+struct AuthRejectedError: LocalizedError {
+    let message: String
+    init(_ message: String = "服务器拒绝了这份登录，需要重新登录这个账号。") { self.message = message }
+    var errorDescription: String? { message }
+}
 struct SavedAccount: Codable, Identifiable, Equatable {
     var id: UUID
     var identityKey: String
@@ -46,6 +107,10 @@ struct SavedAccount: Codable, Identifiable, Equatable {
     var warmup: WarmupRecord?
     var resetAttempt: ResetAttempt?
     var lastResetAt: Date?
+    var stamp: CredentialStamp?
+    var verdict: AuthVerdict?
+    var credentialSource: String?
+    var credentialUpdatedAt: Date?
 }
 struct SwitchLibrary: Codable {
     var version = 1

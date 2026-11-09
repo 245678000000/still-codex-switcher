@@ -12,6 +12,8 @@ struct DiagnosticReport {
     let checks: [DiagnosticCheck]
     var quota: QuotaSnapshot? = nil
     var models: [String] = []
+    /// The service answered 401 for the access token, so this exact login copy was rejected.
+    var authRejected = false
     static let boundary = "基础检查不发送聊天消息。模型目录不等于实际推理验证；本结果不是风控或模型身份判定。"
     var summary: String { checks.contains { $0.level == .attention } ? "有项目需要处理" : checks.contains { $0.level == .unknown } ? "部分项目待确认" : "基础检查已完成" }
     func isStale(now: Date = Date()) -> Bool {
@@ -37,6 +39,7 @@ struct DiagnosticProtocol {
     private var models = Set<String>()
     private var checks = [DiagnosticCheck(id: "credentials", title: "账号凭据", level: .passed, detail: "本地资料与所选账号匹配；未刷新或回写凭证")]
     private var quota: QuotaSnapshot?
+    private var authRejected = false
     init(credentials: QuotaCredentials) { self.credentials = credentials }
     static var initialize: [String: Any] { ["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "still_account_diagnostics", "version": "1.0.0"], "capabilities": ["experimentalApi": true]]] }
     private func modelRequest(_ cursor: String? = nil) -> [String: Any] {
@@ -46,13 +49,14 @@ struct DiagnosticProtocol {
     }
     private mutating func finish(_ now: Date) -> Event {
         expected = -1
-        return .result(DiagnosticReport(checkedAt: now, checks: checks, quota: quota, models: models.sorted()))
+        return .result(DiagnosticReport(checkedAt: now, checks: checks, quota: quota, models: models.sorted(), authRejected: authRejected))
     }
     mutating func receive(_ obj: [String: Any], now: Date = Date()) throws -> Event {
         guard expected > 0 else { return .ignore }
         if let method = obj["method"] as? String {
             if obj["id"] != nil {
-                checks.append(DiagnosticCheck(id: "request", title: "官方服务", level: .attention, detail: method == "account/chatgptAuthTokens/refresh" ? "访问令牌需更新，请在 Codex 登录后更新备份或重新添加账号" : "组件请求了额外操作，检查已停止"))
+                if method == "account/chatgptAuthTokens/refresh" { authRejected = true }
+                checks.append(DiagnosticCheck(id: "request", title: "官方服务", level: .attention, detail: method == "account/chatgptAuthTokens/refresh" ? "服务器拒绝了这份登录（401），请在账号卡片上重新登录" : "组件请求了额外操作，检查已停止"))
                 return finish(now)
             }
             return .ignore
@@ -62,7 +66,7 @@ struct DiagnosticProtocol {
             let reason: String
             switch QuotaSnapshot.number(error["code"]) {
             case -32601, -32602: reason = "CLI 协议不兼容，请更新官方 Codex"
-            case 401: reason = "服务返回认证失败，请更新登录备份"
+            case 401: reason = "服务返回认证失败，请在账号卡片上重新登录"; authRejected = true
             case 403: reason = "服务拒绝本次访问，请到官方客户端核对；原因待确认"
             case 429: reason = "请求受限，请稍后重试；额度与频率限制需分别核对"
             default: reason = "请求未完成，请检查网络、登录备份及 CLI 版本；原因待确认"

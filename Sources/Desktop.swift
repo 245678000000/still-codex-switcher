@@ -6,7 +6,7 @@ import CryptoKit
     var bundleID: String { Bundle(url: url)?.bundleIdentifier ?? "com.openai.codex" }
     var version: String { Bundle(url: url)?.infoDictionary?["CFBundleShortVersionString"] as? String ?? "未知" }
     var cli: URL? {
-        let candidates = ["Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex", "Contents/Resources/codex"]
+        let candidates = ["Contents/Resources/codex-cli/bin/codex", "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex", "Contents/Resources/codex"]
         return candidates.map { url.appendingPathComponent($0) }.first { FileManager.default.isExecutableFile(atPath: $0.path) }
     }
     static func find() -> CodexDesktop? {
@@ -26,12 +26,12 @@ import CryptoKit
         guard apps.allSatisfy(\.isTerminated) else { throw SwitchError("Codex 仍在运行；当前账号保持不变。请完成退出提示后重试。") }
         // Wait for app-owned CLI helpers too. No force-kill and no changes to other CLI sessions.
         for _ in 0..<40 {
-            if !helpersRunning() { return }
+            if !(await Task.detached { Self.helpersRunning(at: self.url) }.value) { return }
             try await Task.sleep(for: .milliseconds(200))
         }
         throw SwitchError("Codex 后台组件尚未退出；当前登录文件保持不变。请稍后重试。")
     }
-    private func helpersRunning() -> Bool {
+    nonisolated private static func helpersRunning(at url: URL) -> Bool {
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/ps"); p.arguments = ["-axo", "comm="]
         let pipe = Pipe(); p.standardOutput = pipe; p.standardError = FileHandle.nullDevice
         do { try p.run(); let data = pipe.fileHandleForReading.readDataToEndOfFile(); p.waitUntilExit(); guard p.terminationStatus == 0 else { return true }
@@ -55,7 +55,7 @@ import CryptoKit
         if let original { _ = try Identity.read(original) }
         // Durable rollback is written before any change to the live login file.
         let rollback = Rollback(original: original, targetDigest: Self.digest(target), date: Date())
-        try vault.put(JSONEncoder().encode(rollback), for: "rollback")
+        try await vault.writeAsync(JSONEncoder().encode(rollback), for: "rollback")
         guard try SecureFile.read(authURL) == original else { throw SwitchError("备份期间登录文件发生变化，已保留当前状态。请结束其他 Codex 会话后重试。") }
         try SecureFile.write(target, to: authURL)
         do { try await start() }

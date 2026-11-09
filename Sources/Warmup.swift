@@ -69,7 +69,7 @@ struct WarmupProtocol {
     mutating func receive(_ object: [String: Any], now: Date = Date()) throws -> Event {
         if let method = object["method"] as? String {
             if object["id"] != nil {
-                if method == "account/chatgptAuthTokens/refresh" { throw SwitchError("访问令牌已过期，预热已暂停。请更新登录备份或重新添加账号。") }
+                if method == "account/chatgptAuthTokens/refresh" { throw AuthRejectedError("服务器拒绝了这份登录，预热已暂停。请重新登录这个账号。") }
                 throw SwitchError("预热组件请求了额外操作，任务已停止。")
             }
             if method == "turn/completed", let params = object["params"] as? [String: Any], params["threadId"] as? String == threadID {

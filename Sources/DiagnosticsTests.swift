@@ -35,11 +35,12 @@ import Darwin
             _ = try failed.receive(["id": 3, "error": ["code": code, "message": "SECRET-server-payload"]], now: now)
             if case .result(let report) = try failed.receive(["id": 4, "result": ["data": [[String: Any]]()]], now: now) {
                 check(report.summary == "有项目需要处理" && !report.checks.map(\.detail).joined().contains("SECRET"), "diagnostics service failure redacted")
+                check((code == 401) == report.authRejected, "diagnostics marks only 401 as a rejected login (\(code))")
             } else { check(false, "diagnostics failure report") }
         }
         var refresh = try begin()
         if case .result(let report) = try refresh.receive(["id": 90, "method": "account/chatgptAuthTokens/refresh"], now: now) {
-            check(report.summary == "有项目需要处理", "diagnostics refresh stops without renewal")
+            check(report.summary == "有项目需要处理" && report.authRejected, "diagnostics refresh stops without renewal and marks login rejected")
         } else { check(false, "diagnostics refresh stops") }
         var repeated = try begin(); _ = try repeated.receive(["id": 3, "result": [:]], now: now)
         let page: [String: Any] = ["id": 4, "result": ["data": [["model": "example-a"]], "nextCursor": "same"]]

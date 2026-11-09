@@ -29,6 +29,9 @@ final class MemoryVault: SecretVault {
             try await ResetCreditTests.run(check, root: root.appendingPathComponent("reset-fixtures"))
             try await UpdateTests.run(check)
             try await WarmupTests.run(check, root: root.appendingPathComponent("warmup-fixtures"))
+            try AuthTests.run(check, root: root.appendingPathComponent("auth-fixtures"))
+            try VaultTests.run(check, root: root.appendingPathComponent("vault-fixtures"))
+            try await ExperienceTests.run(check, root: root.appendingPathComponent("experience"))
             let a = try fixture(); let b = try fixture("test-user-b", account: "test-workspace-b")
             let ia = try Identity.read(a); let ib = try Identity.read(b)
             check(ia.email == "fixture@example.com" && ia.plan == "plus", "identity display metadata")
@@ -114,9 +117,12 @@ final class MemoryVault: SecretVault {
             check(try SecureFile.loadLibrary(modelPaths.metadata).appearance == "dark", "appearance persists")
             let reopened = SwitcherModel(paths: modelPaths, vault: modelVault)
             check(reopened.library.accounts.count == 1 && reopened.active?.label == "Work", "reopening restores list and current indicator")
+            // Identical bytes are no longer rewritten, so use a new login to force a Keychain write.
+            let unsaved = try fixture(refresh: "write-failure-refresh")
+            try SecureFile.write(unsaved, to: modelPaths.auth)
             modelVault.failWrites = true; model.errorText = nil; model.saveCurrent()
             check(model.errorText != nil && !model.busy, "Keychain save failure leaves UI usable")
-            check(try SecureFile.read(modelPaths.auth) == refreshed, "save failure preserves live fixture")
+            check(try SecureFile.read(modelPaths.auth) == unsaved && modelVault.get(saved.id.uuidString) == refreshed, "save failure preserves live fixture and saved copy")
             modelVault.failWrites = false
             try SecureFile.write(Data("broken".utf8), to: modelPaths.metadata)
             let corruptModel = SwitcherModel(paths: modelPaths, vault: modelVault)
@@ -125,11 +131,28 @@ final class MemoryVault: SecretVault {
             check(try SecureFile.read(modelPaths.metadata) == Data("broken".utf8), "blocked save preserves corrupt list for repair")
             if CommandLine.arguments.contains("--keychain-test") {
                 let service = "app.local.still.codex-switcher.tests." + UUID().uuidString
-                let real = KeychainVault(service: service)
-                defer { try? real.remove("fixture") }
-                try real.put(a, for: "fixture"); check(try real.get("fixture") == a, "isolated Keychain roundtrip")
-                try real.put(b, for: "fixture"); check(try real.get("fixture") == b, "isolated Keychain update")
-                try real.remove("fixture"); check(try real.get("fixture") == nil, "isolated Keychain cleanup")
+                let keyService = service + ".key", sharedService = service + ".shared"
+                defer { _ = SecurityTool.run(["delete-generic-password", "-s", keyService, "-a", SecurityToolKeyStore.account]) }
+                let stores = [LegacyKeychain(service: sharedService, encoded: true), LegacyKeychain(service: service, encoded: false)]
+                let real = EncryptedFileVault(directory: root.appendingPathComponent("keychain-vault"), keys: SecurityToolKeyStore(service: keyService), legacy: stores)
+                try real.put(a, for: "fixture"); check(try real.get("fixture") == a, "real key store roundtrip")
+                try real.put(b, for: "fixture"); check(try real.get("fixture") == b, "real key store update")
+                let reopened = EncryptedFileVault(directory: root.appendingPathComponent("keychain-vault"), keys: SecurityToolKeyStore(service: keyService), legacy: stores)
+                check(try reopened.get("fixture") == b, "real key store survives reopening")
+
+                let sharedValue = Data("fixture-shared\n".utf8)
+                let line = "add-generic-password -s \(sharedService) -a shared -T /usr/bin/security -w \(sharedValue.base64EncodedString())\n"
+                check(SecurityTool.run(["-i"], input: Data(line.utf8))?.status == 0, "shared legacy item seeded")
+                check(try real.get("shared") == sharedValue, "shared legacy item moved")
+                check(SecurityTool.run(["find-generic-password", "-s", sharedService, "-a", "shared"])?.status == SecurityTool.itemNotFound, "shared legacy item removed")
+
+                let legacy: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+                    kSecAttrAccount as String: "restricted", kSecAttrSynchronizable as String: false]
+                var seeded = legacy; seeded[kSecValueData as String] = a
+                check(SecItemAdd(seeded as CFDictionary, nil) == errSecSuccess, "restricted legacy item seeded")
+                check(try real.get("restricted") == a, "restricted legacy item moved")
+                check(SecItemCopyMatching(legacy as CFDictionary, nil) == errSecItemNotFound, "restricted legacy item removed")
+                check(try real.get("restricted") == a, "moved item still readable")
             }
         } catch { failed += 1; print("FAIL unexpected fixture error: " + error.localizedDescription) }
         print("RESULT \(passed) passed, \(failed) failed. Fixtures only; no live Codex session touched.")

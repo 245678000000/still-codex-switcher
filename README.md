@@ -6,7 +6,24 @@
 
 **平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
 
-### 最新：重置卡小字入口
+### 本地改进版：macOS 1.7.1-preview.1
+
+- 后台钥匙串读取禁止弹出授权 UI，遇到授权需求显示「待解锁」，由用户点击「解锁登录」后重试。
+- 密钥短时缓存 5 分钟，锁屏、休眠、退出时清理；已有加密文件保持兼容，不创建明文凭据备份。
+- 切换显示 1/4 至 4/4 进度，查询/退出检测和回滚备份中的阻塞工作移到工作线程；不强制结束其他进程。
+- 重新登录后优先执行只读额度验证，不等整轮后台刷新、不触发预热；确认后显示「认证有效」。网络问题与「登录已失效」分开显示。
+- 当前 Codex 还在用旧登录时，顶部不把新保存的登录误报为当前已生效，保留「载入新登录」入口。
+- 源码已同步 GitHub；本次不创建 Release 或上传安装包。验证范围见 [macOS 交互验收](docs/macos-ux-validation.md)。
+
+### 认证状态 · 重新登录 · 导入导出（macOS 1.7.0）
+
+- **认证状态一眼可见**：卡片上用绿色「认证有效」、灰色「待验证」、黄色「令牌已过期」、红色「认证已失效」区分。失效的账号整张卡片标红，列表顶部有汇总提示，并直接给出「重新登录」。
+- **重新登录后及时生效**：Codex 自己续期或重新登录后，几秒内同步进钥匙串。较旧的 `auth.json` 不会再覆盖刚完成的新登录。当前账号有更新的登录时，可一键「载入新登录」并重启 Codex。
+- **导入 / 导出**：用密码加密的 `.stillcodex` 文件在电脑之间迁移账号，也可以直接导入另一台电脑的 `auth.json`。同一份登录在两台设备同时使用，先续期的一方会让另一方失效。
+
+说明见 [认证状态与导入导出](docs/credentials.md)。已在 Apple Silicon Mac 完成优化构建和 442 项离线测试；真实账号切换与登录仍需单独验收。
+
+### 重置卡小字入口
 
 [macOS 1.6.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.6.0-preview.1) · [Windows 1.5.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.5.0-preview.1)
 
@@ -67,7 +84,9 @@ Windows 10/11 x64 的 [1.3 自动预热预览版](https://github.com/24567800000
 
 ## 数据与兼容性
 
-- 保存的会话凭据、独立回滚备份：macOS 钥匙串服务 `app.local.still.codex-switcher.credentials`；不启用 iCloud 同步。
+- 保存的会话凭据、独立回滚备份：AES-GCM 加密后存为 `~/Library/Application Support/StillCodexSwitcher/vault/*.vault`，文件权限 0600、目录权限 0700。密钥保存在 macOS 钥匙串服务 `app.local.still.codex-switcher.vault-key`；不启用 iCloud 同步。**删除这条钥匙串记录后，这些文件将无法解开，需要重新添加账号。**
+- 旧版保存在钥匙串服务 `app.local.still.codex-switcher.credentials` 和 `….credentials.shared` 中的条目，会在首次读取时迁移过来（每条可能出现一次系统确认）；新文件校验无误后才删除旧条目。迁移后旧版本读不到这些账号。
+- **钥匙串访问**：1.7.1 使用原生 Security API，不再通过通用 `security` 命令读取生产密钥；新创建项目只使用系统默认应用访问权限。已有主密钥、密文和旧 ACL 原样保留，不静默改动授权或轮换密钥。1.7.0 创建过允许 `security` 读取的项目，其原有权限仍然存在；本次更改不会收紧其他进程的既有权限。
 - 账号备注、邮箱、订阅缓存标签：本机 `~/Library/Application Support/StillCodexSwitcher/accounts.json`，权限 0600。
 - 使用中的登录文件：`$CODEX_HOME/auth.json`；没有设置环境变量时使用 `~/.codex/auth.json`。替换文件权限为 0600。
 - 添加账号使用**已安装 Codex 自带的官方 CLI**。它在单独的 0700 私有目录中暂存登录资料，完成或取消后清理；下次添加时也会清理本工具遗留的 UUID 登录暂存目录。
@@ -85,11 +104,13 @@ Windows 10/11 x64 的 [1.3 自动预热预览版](https://github.com/24567800000
 
 ### 安装提示
 
-这个本地构建使用 ad-hoc 签名，已做签名完整性校验；没有 Apple Developer ID 公证。若 macOS 提示来源尚未验证，请按系统提供的应用审阅/打开流程处理，或从源码自行编译。没有关闭 Gatekeeper 或修改系统安全设置。首次访问钥匙串时如出现系统提示，请核对应用名称。
+这个本地构建使用 ad-hoc 签名，已做签名完整性校验；没有 Apple Developer ID 公证。若 macOS 提示来源尚未验证，请按系统提供的应用审阅/打开流程处理，或从源码自行编译。没有关闭 Gatekeeper 或修改系统安全设置。后台操作不请求授权 UI；首次手动解锁、旧条目迁移或应用签名变化时仍可能出现系统授权。请核对应用后选择允许或始终允许。本地 ad-hoc 签名不承诺跨版本永不提示；发布者可用 `CODE_SIGN_IDENTITY` 指定稳定 Developer ID 身份构建。
 
 ## 测试结果与尚待验证
 
-本次更新功能详见 [macOS 更新验收记录](Tests/macos-updates-validation.md)。此前额度验收见 [额度记录](Tests/macos-quota-validation.md)，最初版本记录保留在 `Tests/验收记录.md`。
+当前 macOS 1.7.1 的 442 项离线验收与边界见 [交互验收记录](docs/macos-ux-validation.md)。以下为此前自动更新功能的历史验收记录。
+
+此前自动更新功能详见 [macOS 更新验收记录](Tests/macos-updates-validation.md)。此前额度验收见 [额度记录](Tests/macos-quota-validation.md)，最初版本记录保留在 `Tests/验收记录.md`。
 
 - 本次 176 项本地测试通过，包含更新版本/渠道/频率/URL校验与原额度、账号、**独立钥匙串测试服务**回归；所有凭据均为虚构测试数据。
 - 已由打包 App 实际访问 GitHub 公开版本列表并验证旧版比较；没有创建账号模型或加载登录凭据。

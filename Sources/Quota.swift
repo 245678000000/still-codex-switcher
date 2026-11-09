@@ -93,12 +93,13 @@ struct QuotaProtocol {
     mutating func receive(_ object: [String: Any], now: Date = Date()) throws -> Event {
         if let method = object["method"] as? String {
             guard let id = object["id"] else { return .ignore }
-            if method == "account/chatgptAuthTokens/refresh" { throw SwitchError("登录已过期，请更新登录备份或重新添加账号。") }
+            if method == "account/chatgptAuthTokens/refresh" { throw AuthRejectedError() }
             return .send([["id": id, "error": ["code": -32601, "message": "This viewer does not run tools or renew tokens."]]])
         }
         guard QuotaSnapshot.number(object["id"]) == Double(expected) else { return .ignore }
         if let error = object["error"] as? [String: Any] {
             let code = QuotaSnapshot.number(error["code"])
+            if code == 401 { throw AuthRejectedError() }
             throw SwitchError(code == -32601 || code == -32602 ? "当前 CLI 的额度协议不兼容，请更新官方 Codex。" : "额度查询失败，请检查网络或更新登录备份。")
         }
         guard let result = object["result"] as? [String: Any] else { throw SwitchError("额度响应缺少结果。") }

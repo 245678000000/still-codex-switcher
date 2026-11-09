@@ -27,6 +27,7 @@ struct RootView: View {
         .preferredColorScheme(model.appearance)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.page)
         .sheet(item: $model.editing) { account in RenameSheet(model: model, account: account) }
+        .sheet(item: $model.exportRequest) { request in ExportSheet(model: model, request: request) }
         .alert("操作提示", isPresented: Binding(get: { model.errorText != nil }, set: { if !$0 { model.errorText = nil } })) {
             Button("知道了", role: .cancel) { model.errorText = nil }
         } message: { Text(model.errorText ?? "") }
@@ -41,7 +42,7 @@ struct RootView: View {
                 }
             }.padding(.top, 38).padding(.bottom, 35)
             Caption(text: "你的工作，从容接续").padding(.bottom, 14)
-            nav("accounts", "square.stack.3d.up", "账号空间", count: model.library.accounts.count)
+            nav("accounts", "square.stack.3d.up", "账号空间", count: model.library.accounts.count, alert: !model.invalidAccounts.isEmpty)
             nav("tokens", "chart.bar.xaxis", "Token 统计")
             nav("diagnostics", "stethoscope", "账号诊断")
             nav("settings", "slider.horizontal.3", "偏好与说明")
@@ -49,7 +50,7 @@ struct RootView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: "key.horizontal").font(.system(size: 21, weight: .light)).foregroundStyle(Palette.accent)
                 Text("留在本机，随时就位。 ").font(.system(size: 12, weight: .medium))
-                Text("凭据存入 macOS 钥匙串。\n不保存账号密码。额度查询仅连接官方服务。")
+                Text("凭据在本机加密保存，密钥由 macOS 钥匙串保管。\n不保存账号密码。")
                     .font(.system(size: 10.5)).foregroundStyle(Palette.muted).lineSpacing(5)
             }.padding(15).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Palette.surface.opacity(0.65), in: RoundedRectangle(cornerRadius: 14)).padding(.bottom, 18)
@@ -60,13 +61,14 @@ struct RootView: View {
             }.foregroundStyle(Palette.muted).padding(.bottom, 22)
         }.padding(.horizontal, 19).background(Palette.sidebar)
     }
-    private func nav(_ page: String, _ symbol: String, _ title: String, count: Int? = nil) -> some View {
+    private func nav(_ page: String, _ symbol: String, _ title: String, count: Int? = nil, alert: Bool = false) -> some View {
         Button { model.page = page } label: {
             HStack(spacing: 10) {
                 Image(systemName: symbol).font(.system(size: 14)).frame(width: 18)
                 Text(title).font(.system(size: 12, weight: model.page == page ? .semibold : .regular))
                 Spacer()
-                if let count { Text("\(count)").font(.system(size: 10, weight: .medium)).foregroundStyle(Palette.muted) }
+                if alert { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 10)).foregroundStyle(Palette.danger).help("有账号的登录已失效") }
+                if let count { Text("\(count)").font(.system(size: 10, weight: .medium)).foregroundStyle(alert ? Palette.danger : Palette.muted) }
             }.foregroundStyle(model.page == page ? Palette.accent : Palette.muted)
                 .padding(.horizontal, 12).padding(.vertical, 12)
                 .background(model.page == page ? Palette.accentWash : .clear, in: RoundedRectangle(cornerRadius: 10))
@@ -102,9 +104,19 @@ struct RootView: View {
                         HStack(spacing: 5) { Image(systemName: "magnifyingglass"); TextField("查找账号", text: $model.query).textFieldStyle(.plain) }
                             .font(.system(size: 11)).foregroundStyle(Palette.muted).frame(width: 140).padding(8).background(Palette.surface, in: RoundedRectangle(cornerRadius: 7))
                     }
+                    Menu {
+                        Button("导入账号…") { model.importAccounts() }
+                        Button("导出账号…") { model.requestExport() }.disabled(model.library.accounts.isEmpty)
+                    } label: { Label("导入 / 导出", systemImage: "arrow.up.arrow.down.square").font(.system(size: 11, weight: .medium)) }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                        .padding(.horizontal, 12).padding(.vertical, 9)
+                        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 11))
+                        .overlay(RoundedRectangle(cornerRadius: 11).stroke(Palette.line, lineWidth: 1))
+                        .disabled(model.busy || !model.libraryReady).help("用加密文件在电脑之间迁移账号登录")
                     Button { model.addAccount() } label: { Label("添加账号", systemImage: "plus").font(.system(size: 11, weight: .medium)) }
                         .buttonStyle(PressStyle()).disabled(model.busy || !model.libraryReady).keyboardShortcut("n", modifiers: .command)
                 }
+                AuthSummaryBanner(model: model)
                 HStack(spacing: 10) {
                     Text("剩余额度 · 每 5 分钟刷新 · 不切换账号").font(.system(size: 10.5)).foregroundStyle(Palette.muted)
                     Spacer()
@@ -144,8 +156,11 @@ struct RootView: View {
                     Image(systemName: "terminal").font(.system(size: 25, weight: .light)).foregroundStyle(Palette.accent)
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(model.active?.label ?? (model.current == nil ? "先让一个账号就位" : "当前 Codex 账号"))
-                        .font(.system(size: 18, weight: .medium)).lineLimit(1)
+                    HStack(spacing: 8) {
+                        Text(model.active?.label ?? (model.current == nil ? "先让一个账号就位" : "当前 Codex 账号"))
+                            .font(.system(size: 18, weight: .medium)).lineLimit(1)
+                        if model.active != nil { AuthBadge(health: model.currentHealth, active: true) }
+                    }
                     Text(model.current?.email ?? "在 Codex 登录后保存，或通过下方添加账号。")
                         .font(.system(size: 11)).foregroundStyle(Palette.muted).lineLimit(1)
                 }
@@ -217,9 +232,13 @@ struct RootView: View {
             settingsBlock("登录资料只留在本机", symbol: "lock.shield") {
                 VStack(alignment: .leading, spacing: 11) {
                     note("保存什么", "保留官方登录生成的会话凭据；密码始终在官方登录页面输入。")
-                    note("放在哪里", "保存的凭据和回滚备份进入 macOS 钥匙串；账号备注与邮箱保存在本机列表。Codex 使用中的 auth.json 仍由 Codex 管理。")
+                    note("放在哪里", "凭据和回滚备份在本机加密保存，密钥由 macOS 钥匙串保管；账号备注与邮箱保存在本机列表。Codex 使用中的 auth.json 仍由 Codex 管理。")
                     note("怎么切换", "退出 Codex → 保存最新凭据 → 原子替换登录文件 → 重新打开 Codex。聊天记录、配置与项目保持原样。")
-                    note("使用边界", "适配 ChatGPT 登录与 file 存储模式。登录状态过期或被撤销时，需要重新登录。订阅标签来自缓存；额度独立查询，不写当前登录文件，不使用刷新令牌，过期登录需更新备份或重新添加。")
+                    note("认证状态", "每次刷新额度都会顺带验证保存的登录：绿色「认证有效」= 官方服务接受；红色「认证已失效」= 未到期就被拒绝，需要重新登录；黄色「令牌已过期」= 访问令牌到期，切换后 Codex 会尝试续期。栖言自己从不使用刷新令牌。")
+                    note("解锁登录", "后台查询遇到钥匙串授权需求时，只显示待解锁。点击卡片上的解锁登录再授权；只给已核对来源的本应用选择始终允许。锁屏、休眠或退出时清除内存密钥缓存。")
+                    note("自动同步", "Codex 自己续期或重新登录后，栖言会在几秒内把新登录加密保存，并且绝不会用较旧的登录覆盖较新的那份。")
+                    note("导入导出", "「导入 / 导出」用密码加密的 .stillcodex 文件迁移账号，也可直接导入另一台电脑的 auth.json。同一份登录在两台设备同时使用，先续期的一方会让另一方失效。")
+                    note("使用边界", "适配 ChatGPT 登录与 file 存储模式。登录被撤销时需要重新登录。订阅标签来自缓存；额度独立查询，不写当前登录文件。")
                 }
             }
             settingsBlock("恢复与兼容性", symbol: "arrow.uturn.backward") {
@@ -259,6 +278,7 @@ struct AccountRow: View {
     @State private var hover = false
     var isCurrent: Bool { account.identityKey == model.current?.key }
     var body: some View {
+        let health = model.health(account)
         VStack(alignment: .leading, spacing: 12) {
         HStack(spacing: 13) {
             AccountAvatar(account: account)
@@ -267,23 +287,40 @@ struct AccountRow: View {
                     Text(account.label).font(.system(size: 13, weight: .medium)).lineLimit(1)
                     Text(account.plan.uppercased()).font(.system(size: 8.5, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Palette.muted).padding(.horizontal, 6).padding(.vertical, 3).background(Palette.sidebar, in: RoundedRectangle(cornerRadius: 4))
+                    AuthBadge(health: health, active: isCurrent)
                 }
                 Text(account.email).font(.system(size: 10.5)).foregroundStyle(Palette.muted).lineLimit(1)
             }
             Spacer(minLength: 10)
-            if isCurrent {
+            if model.switchingAccountID == account.id {
+                HStack(spacing: 7) { ProgressView().controlSize(.small); Text("正在切换…").font(.system(size: 10.5)) }.foregroundStyle(Palette.accent)
+            } else if case .locked = health {
+                Button("解锁登录") { model.unlockLogin(account) }.buttonStyle(PressStyle()).disabled(model.busy)
+            } else if isCurrent {
                 Label("当前配置", systemImage: "checkmark.circle.fill").font(.system(size: 10.5)).foregroundStyle(Palette.accent).padding(.trailing, 6)
+            } else if health.isInvalid {
+                // A rejected login would only make Codex ask to sign in; offer the fix first.
+                Button { model.reauthorize(account) } label: {
+                    HStack(spacing: 7) { Image(systemName: "person.badge.key"); Text("重新登录") }.font(.system(size: 10.5, weight: .semibold))
+                }.buttonStyle(PressStyle(danger: true)).disabled(model.busy || !model.libraryReady)
             } else {
                 Button { model.confirmSwitch(account) } label: {
                     HStack(spacing: 7) { Text("切换并重启"); Image(systemName: "arrow.right").font(.system(size: 9)) }.font(.system(size: 10.5, weight: .medium))
                 }.buttonStyle(PressStyle()).disabled(model.busy)
             }
             Menu {
+                Button("重新登录…") { model.reauthorize(account) }
+                if isCurrent && model.staleLive.contains(account.id) { Button("载入新登录并重启 Codex…") { model.reloadActive(account) } }
+                if !isCurrent && health.isInvalid { Button("仍然切换并重启…") { model.confirmSwitch(account) } }
+                Divider()
                 Button("修改账号备注") { model.editing = account }
+                Button("导出此账号…") { model.requestExport(account) }
+                Divider()
                 Button("移除保存记录…") { model.remove(account) }
             } label: { Image(systemName: "ellipsis").frame(width: 18, height: 24).foregroundStyle(Palette.muted) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().disabled(model.busy).help("账号操作")
         }
+        AuthNotice(model: model, account: account, health: health, active: isCurrent)
         Hairline()
         AccountQuotaView(state: model.quotas[account.id] ?? QuotaState(), disabled: model.busy || model.refreshingQuotas) {
             model.refreshQuotas(accountID: account.id)
@@ -305,7 +342,7 @@ struct AccountRow: View {
         }
         }.padding(.horizontal, 16).padding(.vertical, 14)
             .background(hover ? Palette.surface : Palette.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 13))
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(isCurrent ? Palette.accent.opacity(0.28) : Palette.line, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(health.isInvalid ? Palette.danger.opacity(0.55) : isCurrent ? Palette.accent.opacity(0.28) : Palette.line, lineWidth: health.isInvalid ? 1.5 : 1))
             .onHover { hover = $0 }
     }
 }

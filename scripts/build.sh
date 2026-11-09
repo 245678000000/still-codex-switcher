@@ -22,7 +22,13 @@ xcrun swiftc -swift-version 5 -O -whole-module-optimization \
   "$STAGE"/Sources/*.swift -o "$APP/Contents/MacOS/StillCodexSwitcher"
 cp "$STAGE/Info.plist" "$APP/Contents/Info.plist"
 cp "$STAGE/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-codesign --force --sign - "$APP"
+# Use one stable Developer ID identity across releases when available.
+SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
+if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  codesign --force --sign - "$APP"
+else
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
+fi
 codesign --verify --deep --strict "$APP"
 "$APP/Contents/MacOS/StillCodexSwitcher" --self-test
 python3 - "$APP" "$DEST" <<'PY'

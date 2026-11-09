@@ -58,6 +58,17 @@ import SwiftUI
         }
         if args.contains("--diagnostics") { model.page = "diagnostics"; if demo { model.seedDiagnostics(empty: args.contains("--diagnostics-empty")) } }
         if demo && args.contains("--reset-pending") { model.seedResetCards(pending: true) }
+        if demo, let index = args.firstIndex(of: "--auth-state"), args.count > index + 1, let first = model.library.accounts.first {
+            switch args[index + 1] {
+            case "locked": model.authChecks[first.id] = .locked
+            case "checking": model.authChecks[first.id] = .checking
+            case "invalid": model.authChecks[first.id] = .invalid(since: Date())
+            case "unavailable": model.authChecks[first.id] = .unavailable
+            case "stale": model.staleLive.insert(first.id)
+            default: break
+            }
+        }
+        if demo && args.contains("--switch-demo") { model.seedSwitchProgress() }
         if args.contains("--empty") { model.library.accounts = []; model.current = nil }
         if args.contains("--settings") { model.page = "settings" }
         if args.contains("--tokens") { model.page = "tokens"; if demo { model.tokenUsage.seedDemo() } }
@@ -74,6 +85,7 @@ import SwiftUI
         w.delegate = self; w.center(); w.makeKeyAndOrderFront(nil); window = w
         installMenu(); installStatus(); NSApp.activate(ignoringOtherApps: true)
         if !demo {
+            model.startAuthMonitor()
             model.updater.check(automatic: true)
             updateTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.model.updater.check(automatic: true) }
@@ -114,6 +126,9 @@ import SwiftUI
         let account = NSMenuItem(); account.title = "账号"; menu.addItem(account); let sub = NSMenu(); account.submenu = sub
         sub.addItem(withTitle: "保存当前账号", action: #selector(saveCurrent), keyEquivalent: "s").target = self
         sub.addItem(withTitle: "添加账号", action: #selector(add), keyEquivalent: "n").target = self
+        sub.addItem(.separator())
+        sub.addItem(withTitle: "导入账号…", action: #selector(importAccounts), keyEquivalent: "").target = self
+        sub.addItem(withTitle: "导出账号…", action: #selector(exportAccounts), keyEquivalent: "").target = self
         // Native Edit menu keeps standard text editing and paste behavior in account labels.
         let edit = NSMenuItem(); edit.title = "编辑"; menu.addItem(edit); let edits = NSMenu(title: "编辑"); edit.submenu = edits
         for (title, action, key) in [("撤销", "undo:", "z"), ("剪切", "cut:", "x"), ("复制", "copy:", "c"), ("粘贴", "paste:", "v"), ("全选", "selectAll:", "a")] {
@@ -131,7 +146,7 @@ import SwiftUI
         let title = NSMenuItem(title: model.demo ? "栖言 · 演示模式" : "栖言 · Codex 账号", action: nil, keyEquivalent: ""); title.isEnabled = false; menu.addItem(title)
         menu.addItem(.separator())
         for account in model.library.accounts {
-            let item = NSMenuItem(title: account.label, action: #selector(switchFromMenu(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: account.label + (model.health(account).isInvalid ? " · 登录已失效" : ""), action: #selector(switchFromMenu(_:)), keyEquivalent: "")
             item.target = self; item.representedObject = account.id.uuidString
             item.state = account.identityKey == model.current?.key ? .on : .off
             item.isEnabled = !model.busy && account.identityKey != model.current?.key
@@ -150,6 +165,8 @@ import SwiftUI
     @objc private func showWindow() { window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     @objc private func saveCurrent() { guard !model.busy else { return }; model.saveCurrent() }
     @objc private func add() { guard !model.busy else { return }; model.addAccount() }
+    @objc private func importAccounts() { guard !model.busy else { return }; showWindow(); model.page = "accounts"; model.importAccounts() }
+    @objc private func exportAccounts() { guard !model.busy else { return }; showWindow(); model.page = "accounts"; model.requestExport() }
     @objc private func checkUpdates() { model.page = "settings"; showWindow(); model.updater.check() }
     @objc private func about() {
         let alert = NSAlert(); alert.messageText = "栖言 · Codex 账号 " + AppRelease.current
@@ -178,7 +195,7 @@ import SwiftUI
         return .terminateNow
     }
     func windowWillClose(_ notification: Notification) { model?.cancelDiagnostics(); if model?.hasAutoWarmup != true && model?.warmingAccountID == nil { model?.cancelQuotaRefresh() } }
-    func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate(); updateTimer?.invalidate(); model?.updater.cancel() }
+    func applicationWillTerminate(_ notification: Notification) { quotaTimer?.invalidate(); updateTimer?.invalidate(); model?.stopAuthMonitor(); model?.updater.cancel() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showWindow(); return true }
 }
