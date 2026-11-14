@@ -1,178 +1,155 @@
-# 栖言 · Codex 账号
+<h1 align="center">Still · Codex Account Switcher</h1>
 
-> Still — a native macOS account switcher for the Codex desktop app. Save multiple ChatGPT logins locally (Keychain) and switch with one click.
+<p align="center">Your accounts, ready when you are.</p>
 
-一个独立的 macOS 账号切换器，切换的是原来的 **Codex 桌面端**，不是网页聊天窗口，也不是 API 聊天客户端。
+<p align="center">A native account manager for Codex Desktop on macOS and Windows.</p>
 
-**平台：Apple Silicon（M 系列），macOS 14 或更新版本。**
+<p align="center">
+  <a href="./README.md">English</a> · <a href="./README.zh-CN.md">简体中文</a> ·
+  <a href="https://github.com/245678000000/still-codex-switcher/releases">Downloads</a>
+</p>
 
-### 本地改进版：macOS 1.7.1-preview.1
+## Overview
 
-- 后台钥匙串读取禁止弹出授权 UI，遇到授权需求显示「待解锁」，由用户点击「解锁登录」后重试。
-- 密钥短时缓存 5 分钟，锁屏、休眠、退出时清理；已有加密文件保持兼容，不创建明文凭据备份。
-- 切换显示 1/4 至 4/4 进度，查询/退出检测和回滚备份中的阻塞工作移到工作线程；不强制结束其他进程。
-- 重新登录后优先执行只读额度验证，不等整轮后台刷新、不触发预热；确认后显示「认证有效」。网络问题与「登录已失效」分开显示。
-- 当前 Codex 还在用旧登录时，顶部不把新保存的登录误报为当前已生效，保留「载入新登录」入口。
-- 源码已同步 GitHub；本次不创建 Release 或上传安装包。验证范围见 [macOS 交互验收](docs/macos-ux-validation.md)。
+Still (栖言) saves multiple ChatGPT sign-ins locally and helps you move between them in the **official Codex desktop app**. Check account quotas, review local token usage, and switch with a confirmed restart.
 
-### 认证状态 · 重新登录 · 导入导出（macOS 1.7.0）
+This is an account-management companion—not a web-chat wrapper, a separate chat client, or an API-key manager. The current application interface is in Simplified Chinese.
 
-- **认证状态一眼可见**：卡片上用绿色「认证有效」、灰色「待验证」、黄色「令牌已过期」、红色「认证已失效」区分。失效的账号整张卡片标红，列表顶部有汇总提示，并直接给出「重新登录」。
-- **重新登录后及时生效**：Codex 自己续期或重新登录后，几秒内同步进钥匙串。较旧的 `auth.json` 不会再覆盖刚完成的新登录。当前账号有更新的登录时，可一键「载入新登录」并重启 Codex。
-- **导入 / 导出**：用密码加密的 `.stillcodex` 文件在电脑之间迁移账号，也可以直接导入另一台电脑的 `auth.json`。同一份登录在两台设备同时使用，先续期的一方会让另一方失效。
+## Highlights
 
-说明见 [认证状态与导入导出](docs/credentials.md)。已在 Apple Silicon Mac 完成优化构建和 442 项离线测试；真实账号切换与登录仍需单独验收。
+| Feature | What you get |
+| --- | --- |
+| Multiple accounts | Save the current login, add other accounts through the official sign-in flow, and organize them with names and search. |
+| Quotas at a glance | Per-account 5-hour and 7-day remaining usage, reset times, and clearly marked stale or missing results. |
+| Local token statistics | Date filters, input/output breakdowns, daily trends, model distribution, and CSV export. |
+| Reset credits | Available credits, expiration dates, and a confirmation before using one. Pending requests retain their identifier to reduce duplicate consumption. |
+| Optional warm-up | Per-account controls and a manual action. Disabled by default; each request consumes real model usage. |
+| Native desktop UI | SwiftUI on macOS and WPF on Windows, with light, dark, and system appearance. |
 
-### 重置卡小字入口
+**macOS 1.7.1 also includes** login-health badges, explicit Keychain unlock, priority verification after re-login, encrypted account import/export, switch-progress indicators, and update checks.
 
-[macOS 1.6.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.6.0-preview.1) · [Windows 1.5.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.5.0-preview.1)
+The platforms have separate release tracks. macOS-specific features are not automatically available in the Windows build.
 
-每个账号显示重置卡余量、有效期和「使用一张…」。确认后消耗一次，结果不明时保留同一请求标识供核对，避免重复扣卡；保留基础诊断、自动预热和 Token 统计。[重置卡说明](docs/reset-cards.md)。
+## Download
 
-以下为历史版本说明。
+| Platform | Requirements | Current preview | Package |
+| --- | --- | --- | --- |
+| macOS | Apple Silicon (M series), macOS 14+ | [1.7.1-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.7.1-preview.1) | [macOS ZIP](https://github.com/245678000000/still-codex-switcher/releases/download/macos-v1.7.1-preview.1/Codex-Account-Switcher-macOS.zip) |
+| Windows | Windows 10/11, Intel/AMD x64 | [1.5.0-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.5.0-preview.1) | [Windows ZIP](https://github.com/245678000000/still-codex-switcher/releases/download/windows-v1.5.0-preview.1/Codex-Account-Switcher-Windows-x64.zip) |
 
-**[下载 macOS 账号预热修复版 1.3.1-preview.1](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.1-preview.1)**：逐账号开启自动预热（默认关闭），手动预热可在重置时间之前尝试，保留额度显示和自动检查更新。预热会产生实际模型用量；仅使用访问令牌，不复制或刷新登录凭证。详细行为和测试边界见 [预热说明](docs/macos-window-warmup.md)。
+Install the official Codex desktop app first. Still uses its bundled CLI for sign-in and account queries.
 
-已安装 1.2.0 或 1.3.0 的用户可开启「接收预览版本」，再点击「检查更新」下载新版。检查器不自动替换应用或退出 Codex。[更新功能说明](docs/macos-updates.md) · [额度说明](docs/macos-quota.md)
+- **macOS:** quit the previous Still version, extract the ZIP, and move `栖言 Codex 账号.app` to Applications.
+- **Windows:** extract the entire ZIP to a local folder, run `self-test.cmd`, then launch `StillCodexSwitcher.exe`. The release is self-contained; a separate .NET runtime is not required.
+- **Signing:** the Mac preview is ad-hoc signed, without Developer ID notarization; the Windows preview has no Authenticode publisher signature. Follow your OS's application-review prompts and verify the download source.
 
-Windows 10/11 x64 的 [1.3 自动预热预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.3.1-preview.1) 支持每个账号的 **5 小时 / 7 天剩余额度、自动/手动预热和本机 Token 统计**。预热默认关闭，开启后会产生实际用量；最小化继续，退出后停止。源码和说明在 [`windows/`](windows/README.md)。Mac 钥匙串和 Windows 加密库不互通，需要在各自系统上登录一次。
+## Quick Start
 
-| 浅色 | 深色 |
-|---|---|
-| ![浅色界面](docs/macos-warmup-light.png) | ![深色界面](docs/macos-warmup-dark.png) |
+1. Open Codex and sign in to the account you want to save.
+2. Launch Still and select **保存当前账号** (Save current account), or **更新登录备份** (Update login backup) for an existing entry.
+3. Select **添加账号** (Add account) to sign in to another account on the official OpenAI page. Your current Codex login stays in place during this step.
+4. Save your work and finish other Codex sessions sharing the same login directory.
+5. Select **切换并重启** (Switch and restart), confirm, and check the selected account in Codex after it reopens.
 
-<sub>截图为 `--demo` 演示模式，账号与额度均为虚构。</sub>
+**Switching requires a restart; it is not a hot swap inside a running Codex window.** Tools using the same `CODEX_HOME`—including a CLI or editor extension—also share that login file. This release does not guarantee isolation from those tools.
 
-### 自动检查更新
+For expired entries on macOS, use **重新登录** (Sign in again). A newly saved login is verified first; if Codex still holds the older copy, use **载入新登录** (Load new login) when you are ready to restart it.
 
-| 浅色更新提示 | 深色更新提示 |
-|---|---|
-| ![浅色更新提示](docs/macos-updates-light.png) | ![深色更新提示](docs/macos-updates-dark.png) |
+## Preview
 
-<sub>以上更新检查截图是 1.2.0 的演示界面，不代表当前安装状态。</sub>
+| Light | Dark |
+| --- | --- |
+| ![Still macOS demo in light appearance](docs/macos-warmup-light.png) | ![Still macOS demo in dark appearance](docs/macos-warmup-dark.png) |
 
-## 第一次使用
+These are macOS demo screenshots from an earlier preview, using fictional accounts and quotas. Controls may differ in the current release.
 
-1. 按下方「源码与构建」编译，或从 [macOS 到期预热预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/macos-v1.3.1-preview.1) 下载 `Codex-Account-Switcher-macOS.zip` 并解压，把「栖言 Codex 账号.app」拖到「应用程序」。
-2. 打开栖言，点击 **保存当前账号**。已有的 Codex 登录会话会保存到本机钥匙串；不需要向栖言输入密码。
-3. 点击 **添加账号**，在浏览器的 OpenAI 官方页面登录另一个账号。如果浏览器仍使用原账号，请在登录页面选择要添加的账号。同一账号重复添加会更新原记录。
-4. 需要切换时，先保存 Codex 正在进行的工作，并结束其他共享登录的 Codex 命令行会话。
-5. 点击账号右侧的 **切换并重启**，确认后等待 Codex 重新打开，在 Codex 的头像菜单中核对账号。
+## Credentials, Privacy, and Limits
 
-这是“点选账号后重启生效”，不是在仍运行的 Codex 窗口中即时热切换。
+### Local storage
 
-## 功能
+- **macOS:** saved credentials and rollback backups are AES-GCM encrypted under `~/Library/Application Support/StillCodexSwitcher/vault/`; the encryption key is held in macOS Keychain.
+- **Windows:** credentials and rollback backups use DPAPI scoped to the current Windows user, under `%LOCALAPPDATA%\StillCodexSwitcher\vault`.
+- The account list contains display metadata such as names, email addresses, and cached plan labels—not login tokens. Account passwords are not collected.
+- The active login remains in `$CODEX_HOME/auth.json` (`%CODEX_HOME%\auth.json` on Windows), defaulting to `~/.codex/auth.json` or `%USERPROFILE%\.codex\auth.json`.
+- Sign-in and quota queries contact official services; Mac update checks contact GitHub. Local token-log scanning itself is offline.
+- Migration from older Mac versions is verified before legacy entries are removed. Existing Keychain permissions are preserved; deleting the encryption key makes saved encrypted files inaccessible. See [credential details](docs/credentials.md).
 
-- 账号预热：每个账号独立开关（默认关闭），首次开启会尝试一次，之后至少间隔 5 小时；手动预热可在重置时间之前尝试。失败或结果不明则暂停。旧版开启记录需重新确认。
-- 预热只发送最小模型请求，不切换当前账号、不刷新登录凭证；会消耗实际用量。电脑睡眠或退出栖言后停止。
+### Login validity and renewal
 
-- 自动检查 Mac 更新：启动时及持续运行每 12 小时检查；支持关闭自动检查、选择是否接收预览版。
-- 应用菜单、菜单栏和偏好页均可手动检查；发现新版后查看说明并打开 GitHub 下载，不自动安装。
+**Refreshing quotas is not the same as renewing OAuth credentials.** Still 1.7.1 does not automatically renew every saved, inactive account. On macOS, it monitors the current Codex login and can save credentials that Codex has renewed.
 
-- 每个账号的 5 小时 / 7 天剩余额度与重置时间；主窗口可见时约 5 分钟刷新，支持手动刷新和停止。
-- 额度查询使用独立官方 CLI，不改变当前登录；未知值显示「—」，失败保留并标注上次结果。
+An “authentication valid” badge reflects acceptance of that credential copy during a service check; it is not a promise of future renewal. Exporting a login copies the same session rather than creating a new one. If multiple applications or devices renew that copy independently, token rotation can leave another copy stale. Sign in separately for long-term use on different devices.
 
-- 保存当前账号；独立添加其他账号，不先退出当前 Codex。
-- 账号列表、备注修改、搜索（超过三个账号时显示）、移除保存记录。
-- 浅色、深色、跟随系统；原生 SwiftUI 界面；响应系统减少动态效果偏好。
-- 菜单栏快速选择账号；每次切换仍先确认，避免中断任务。
-- 关闭窗口后常驻菜单栏；Command-Q 完全退出。
-- Command-S 保存当前账号，Command-N 添加账号。
-- 切换前更新当前账号的最新凭据，避免使用过旧的刷新令牌。
-- 自动备份与原子写入；启动失败时恢复原来的文件（若检测到其他程序又修改了文件则保留其改动）。
-- 「偏好与说明」中可恢复上一次切换前的账号。
+### Usage and account boundaries
 
-## 数据与兼容性
+- Local token statistics cover identifiable desktop main sessions—not a complete account bill. Other devices, CLI/editor sessions, derived sessions, and temporary warm-up requests are excluded; historical usage is not assigned to the currently selected account.
+- Warm-up sends real model requests. It does not add quota or guarantee a reset. Automatic warm-up pauses on failure or an uncertain result.
+- Reset credits follow the official account's eligibility and rules. A confirmation is required; stale or missing data is not displayed as a full balance.
+- ChatGPT sign-in with file-based credential storage is supported. API-key, keyring, auto, and ephemeral configurations are not switched by this release.
+- Chat history and project files stay in place. Accounts, subscriptions, and quota balances are not merged.
 
-- 保存的会话凭据、独立回滚备份：AES-GCM 加密后存为 `~/Library/Application Support/StillCodexSwitcher/vault/*.vault`，文件权限 0600、目录权限 0700。密钥保存在 macOS 钥匙串服务 `app.local.still.codex-switcher.vault-key`；不启用 iCloud 同步。**删除这条钥匙串记录后，这些文件将无法解开，需要重新添加账号。**
-- 旧版保存在钥匙串服务 `app.local.still.codex-switcher.credentials` 和 `….credentials.shared` 中的条目，会在首次读取时迁移过来（每条可能出现一次系统确认）；新文件校验无误后才删除旧条目。迁移后旧版本读不到这些账号。
-- **钥匙串访问**：1.7.1 使用原生 Security API，不再通过通用 `security` 命令读取生产密钥；新创建项目只使用系统默认应用访问权限。已有主密钥、密文和旧 ACL 原样保留，不静默改动授权或轮换密钥。1.7.0 创建过允许 `security` 读取的项目，其原有权限仍然存在；本次更改不会收紧其他进程的既有权限。
-- 账号备注、邮箱、订阅缓存标签：本机 `~/Library/Application Support/StillCodexSwitcher/accounts.json`，权限 0600。
-- 使用中的登录文件：`$CODEX_HOME/auth.json`；没有设置环境变量时使用 `~/.codex/auth.json`。替换文件权限为 0600。
-- 添加账号使用**已安装 Codex 自带的官方 CLI**。它在单独的 0700 私有目录中暂存登录资料，完成或取消后清理；下次添加时也会清理本工具遗留的 UUID 登录暂存目录。
-- 不上传凭据到第三方服务，不收集密码，不改 Codex 配置、聊天记录、项目文件或安装程序。
-- 仅适配通过 ChatGPT 登录并采用 `file` 存储的凭据。显式 `keyring`、`auto`、`ephemeral` 或 API Key 情况会提示并保留现状，不自动更改存储模式。
-- 本机 JWT 中的邮箱与订阅标签仅用于展示，没有把它们当成服务器登录验证。额度、订阅和实际身份以 Codex 为准。
-- 登录可能过期或被撤销，需要再次添加账号；不承诺永久免登录。
-- 切换共享 CODEX_HOME 的登录文件也影响使用该目录的 CLI/扩展。请避免多个账号管理工具同时操作。
-- 保存不同账号不会合并订阅、额度或云端数据。
-- 移除账号只删除切换器的保存记录；当前 Codex 登录和独立回滚备份仍然保留。删除 App 本身也不会自动移除钥匙串记录。
+## Build and Test
 
-### 当前验证版本
+### macOS
 
-本机识别到的目标应用安装文件名是 `ChatGPT.app`，Bundle ID 为 `com.openai.codex`，版本 `26.1021.31345`。登录组件版本 `codex-cli 0.164.0-alpha.11.1`。工具通过 Bundle ID 找到正在运行或已安装的 Codex，并不把安装文件名写死。
+Requirements: Xcode Command Line Tools, Python 3, and a supported Mac. No third-party Swift packages are required.
 
-### 安装提示
-
-这个本地构建使用 ad-hoc 签名，已做签名完整性校验；没有 Apple Developer ID 公证。若 macOS 提示来源尚未验证，请按系统提供的应用审阅/打开流程处理，或从源码自行编译。没有关闭 Gatekeeper 或修改系统安全设置。后台操作不请求授权 UI；首次手动解锁、旧条目迁移或应用签名变化时仍可能出现系统授权。请核对应用后选择允许或始终允许。本地 ad-hoc 签名不承诺跨版本永不提示；发布者可用 `CODE_SIGN_IDENTITY` 指定稳定 Developer ID 身份构建。
-
-## 测试结果与尚待验证
-
-当前 macOS 1.7.1 的 442 项离线验收与边界见 [交互验收记录](docs/macos-ux-validation.md)。以下为此前自动更新功能的历史验收记录。
-
-此前自动更新功能详见 [macOS 更新验收记录](Tests/macos-updates-validation.md)。此前额度验收见 [额度记录](Tests/macos-quota-validation.md)，最初版本记录保留在 `Tests/验收记录.md`。
-
-- 本次 176 项本地测试通过，包含更新版本/渠道/频率/URL校验与原额度、账号、**独立钥匙串测试服务**回归；所有凭据均为虚构测试数据。
-- 已由打包 App 实际访问 GitHub 公开版本列表并验证旧版比较；没有创建账号模型或加载登录凭据。
-- 当前官方 CLI 的 4 项合成令牌协议检查通过；真实账号额度读取仍待登录后核对。
-- 旧版已对当时的官方 CLI 验证初始化、空账号读取、发起 OAuth、取消 OAuth；本次未重新运行真实登录流程，也未替换当前 Codex 账号。
-- 已编译、签名、打包，并从 ZIP 重新解压验证。
-- 已渲染并检查浅色、深色、空列表与设置页。
-- 本次为离屏渲染，不把按钮交互与菜单栏操作标记为已验收。
-- **未完成真实账号的浏览器登录回调和完整“退出 → 换账号 → 重启 → 核对头像”验证。** 目前交付为可运行的预览版，首次切换前务必保存任务。
-
-## 源码与构建
-
-无第三方 Swift 依赖。需要 Xcode Command Line Tools 和 Python 3。
-
-```sh
+```bash
+git clone https://github.com/245678000000/still-codex-switcher.git
+cd still-codex-switcher
 bash scripts/build.sh /private/tmp/still-switcher-dist
 ```
 
-脚本把源码字节复制到临时目录编译，避免云同步目录的扩展属性污染签名；运行核心测试后生成 ZIP。默认编译本机架构，可通过 `ARCH=arm64` 指定。当前交付和验收针对 Apple Silicon。
+The script compiles the app, signs it, runs fixture tests, and writes `Codex-Account-Switcher-macOS.zip`. Developers with a signing identity can set `CODE_SIGN_IDENTITY`; the default is ad-hoc signing.
 
-开发命令（以解压后的 App 路径替换 `APP`）：
+After installing the app, these commands use fictional accounts:
 
-```sh
-"$APP/Contents/MacOS/StillCodexSwitcher" --self-test
-"$APP/Contents/MacOS/StillCodexSwitcher" --self-test --keychain-test
-"$APP/Contents/MacOS/StillCodexSwitcher" --update-check-test
-"$APP/Contents/MacOS/StillCodexSwitcher" --demo
-"$APP/Contents/MacOS/StillCodexSwitcher" --render /private/tmp/preview.png --dark
+```bash
+"/Applications/栖言 Codex 账号.app/Contents/MacOS/StillCodexSwitcher" --demo
+"/Applications/栖言 Codex 账号.app/Contents/MacOS/StillCodexSwitcher" --self-test
 ```
 
-`--update-check-test` 仅匿名请求公开 GitHub 发布列表。`--demo` 和 `--render` 使用虚构账号，不读取真实 auth.json，不切换 Codex。`--keychain-test` 只使用随机命名的本工具测试服务，测试结束删除测试项目。
+### Windows
 
-## Windows
+Requirements: Windows and the .NET 8 SDK. From the repository root:
 
-下载 [Windows 额度显示预览版](https://github.com/245678000000/still-codex-switcher/releases/tag/windows-v1.2.0-preview.1)。源码在 [`windows/`](windows/README.md)。在 Windows 上安装 .NET 8 SDK 后，进入该目录运行 `./scripts/build.ps1`。本次核心逻辑 118 项模拟测试已通过；Windows 原生验收进展见 `windows/docs/quota-validation.md`，真实账号查询与切换仍需登录后核对。手动验收工作流是 `.github/workflows/windows.yml`。
+```powershell
+cd windows
+./scripts/build.ps1
+```
 
-## 致谢
+The script runs core tests and publishes a self-contained build. The manual [Windows fixture workflow](.github/workflows/windows.yml) covers Windows-native checks and demo renders. See the [Windows guide](windows/README.md) for troubleshooting and build details.
 
-思路受 codexm 启发。本项目是原生 SwiftUI 的重新实现，切换逻辑全部在本仓库源码中，不包含、不运行也不分发 codexm 的代码或预编译可执行文件。
+## Documentation
 
-## 许可证
+Most detailed guides are currently in Simplified Chinese.
+
+| Topic | Guide |
+| --- | --- |
+| macOS login state, re-login, and encrypted transfers | [Credentials](docs/credentials.md) |
+| Quota display and stale-data behavior | [macOS quotas](docs/macos-quota.md) |
+| Local token statistics and exclusions | [macOS statistics](docs/macos-token-statistics.md) · [Windows statistics](windows/docs/token-statistics.md) |
+| Optional warm-up and usage implications | [macOS warm-up](docs/macos-window-warmup.md) · [Windows warm-up](windows/docs/auto-warmup.md) |
+| Reset-credit confirmation and pending requests | [Reset credits](docs/reset-cards.md) |
+| Read-only account diagnostics | [Diagnostics](docs/account-diagnostics.md) |
+| Mac update channels and checks | [Updates](docs/macos-updates.md) |
+| Windows installation and troubleshooting | [Windows guide](windows/README.md) |
+| macOS 1.7.1 validation scope | [Validation record](docs/macos-ux-validation.md) |
+
+## Project Status and Feedback
+
+Both downloads are **previews**. The macOS 1.7.1 release passed **442 offline fixture tests** plus signing, archive, and demo-render checks. Those tests do not establish a complete real-account sign-in, switching, or renewal workflow; real-account behavior depends on the installed Codex version and service responses.
+
+For a bug report, include the OS version, Still version, Codex version, reproduction steps, and a redacted error message. Never attach `auth.json`, vault files, passwords, full OAuth URLs, or unredacted account exports. Use [GitHub Issues](https://github.com/245678000000/still-codex-switcher/issues) for feedback.
+
+## Acknowledgments and Community
+
+Inspired by codexm. The macOS app is a native SwiftUI implementation; this repository does not include, run, or distribute codexm source or prebuilt executables.
+
+Thanks to the [LINUX DO](https://linux.do/) community for discussion and feedback.
+
+Still is an independent third-party project, not affiliated with or endorsed by OpenAI.
+
+## License
 
 [MIT](LICENSE)
-
-## 官方机制参考
-
-- [Codex 身份验证与登录缓存](https://developers.openai.com/codex/auth)
-- [Codex app-server 登录协议](https://developers.openai.com/codex/app-server)
-
-这是独立第三方本地工具，与 OpenAI 无官方关联。后续 Codex 登录存储或启动协议变化时，可能需要适配。
-
-## macOS Token 消费统计
-
-Mac 版新增左侧「Token 统计」：今日 / 近 7 天 / 近 30 天 / 全部、输入与输出、缓存与推理子项、每日趋势、模型分布、每日 CSV 导出。离线只读本机来源明确的桌面端主会话，不启动请求，也不更动登录或预热设置。
-
-这是本机部分会话统计，不是官方账户账单：插件、CLI、派生会话、临时预热及其他设备未计入；历史会话可能跨账号，不把用量归给当前账号。详见 [数据口径与验证](docs/macos-token-statistics.md)。
-
-## Windows Token 统计
-
-Windows 1.2 预览版同步本机桌面主会话 Token 统计：区间筛选、分类计数、趋势、模型分布和 CSV 导出。数据口径与 Mac 版一致，详见 [Windows 使用与升级说明](windows/README.md)。
-
-
-## 社区
-
-本项目认可 [LINUX DO](https://linux.do/) 社区，感谢佬友们的交流与反馈。
